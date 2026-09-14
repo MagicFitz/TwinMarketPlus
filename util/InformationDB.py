@@ -37,6 +37,7 @@ import multiprocessing as mp
 import os
 import pickle
 import random
+import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -80,9 +81,22 @@ class EmbeddingWorker:
 
     def __init__(self, config_path: str = "config/embedding.yaml"):
         self.config = self._load_config(config_path)
-        self.api_keys = self.config["api_key"]
+        self.provider = str(self.config.get("provider", "openai")).strip().lower()
+        self.api_keys = self.config.get("api_key", [])
+        if isinstance(self.api_keys, str):
+            self.api_keys = [self.api_keys]
         self.model_name = self.config["model_name"]
-        self.base_url = self.config["base_url"]
+        self.base_url = self.config["base_url"].rstrip("/")
+        self.timeout = self.config.get("timeout", 120)
+        self.max_retries = max(1, int(self.config.get("max_retries", 3)))
+
+        endpoint = self.config.get("endpoint")
+        if endpoint:
+            self.endpoint = endpoint
+        elif self.provider in {"ollama", "local"}:
+            self.endpoint = f"{self.base_url}/api/embed"
+        else:
+            self.endpoint = f"{self.base_url}/embeddings"
 
     def _load_config(self, config_path: str) -> Dict:
         """Load API configuration from YAML file."""
@@ -92,47 +106,81 @@ class EmbeddingWorker:
 
     def _get_random_api_key(self) -> str:
         """Randomly select an API key from the list."""
-        return random.choice(self.api_keys)
+        return random.choice(self.api_keys) if self.api_keys else ""
+
+    @staticmethod
+    def _ensure_2d(embedding) -> np.ndarray:
+        """Normalize one embedding to shape ``(1, dimension)``."""
+        embedding = np.asarray(embedding, dtype=np.float32)
+        if embedding.ndim == 1:
+            return embedding.reshape(1, -1)
+        if embedding.ndim == 2 and embedding.shape[0] == 1:
+            return embedding
+        embedding = embedding.squeeze()
+        if embedding.ndim != 1:
+            raise ValueError(f"Invalid embedding shape: {embedding.shape}")
+        return embedding.reshape(1, -1)
+
+    def get_embeddings(self, texts: List[str]) -> List[Optional[np.ndarray]]:
+        """Generate embeddings for a batch while preserving input order."""
+        valid_positions = [
+            index for index, text in enumerate(texts) if isinstance(text, str) and text
+        ]
+        results: List[Optional[np.ndarray]] = [None] * len(texts)
+        if not valid_positions:
+            return results
+
+        valid_texts = [texts[index] for index in valid_positions]
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                headers = {"Content-Type": "application/json"}
+                api_key = self._get_random_api_key()
+                if api_key:
+                    headers["Authorization"] = f"Bearer {api_key}"
+
+                request_input = valid_texts
+                if self.provider not in {"ollama", "local"} and len(valid_texts) == 1:
+                    request_input = valid_texts[0]
+                payload = {"input": request_input, "model": self.model_name}
+                response = requests.post(
+                    self.endpoint,
+                    headers=headers,
+                    json=payload,
+                    timeout=self.timeout,
+                )
+                response.raise_for_status()
+                response_data = response.json()
+
+                if self.provider in {"ollama", "local"}:
+                    raw_embeddings = response_data["embeddings"]
+                else:
+                    raw_embeddings = [
+                        item["embedding"] for item in response_data["data"]
+                    ]
+
+                if len(raw_embeddings) != len(valid_texts):
+                    raise ValueError(
+                        "Embedding response count mismatch: "
+                        f"expected {len(valid_texts)}, got {len(raw_embeddings)}"
+                    )
+
+                for index, raw_embedding in zip(valid_positions, raw_embeddings):
+                    results[index] = self._ensure_2d(raw_embedding)
+                return results
+            except Exception as e:
+                if attempt < self.max_retries:
+                    time.sleep(2 ** (attempt - 1))
+                    continue
+                print(
+                    f"Error generating {len(valid_texts)} embeddings after "
+                    f"{self.max_retries} attempts: {str(e)}"
+                )
+                print(f"Error type: {type(e).__name__}")
+                return results
 
     def get_embedding(self, text: str) -> Optional[np.ndarray]:
         """Get embedding for a given text using the API."""
-        if not text or not isinstance(text, str):
-            return None
-
-        try:
-            # Prepare API request payload
-            headers = {
-                "Authorization": f"Bearer {self._get_random_api_key()}",  # Randomly select a key for each request
-                "Content-Type": "application/json",
-            }
-            payload = {"input": text, "model": self.model_name}
-
-            # Send request to the API
-            response = requests.post(
-                f"{self.base_url}/embeddings", headers=headers, json=payload
-            )
-            response.raise_for_status()  # Raise an error for bad responses
-
-            # Parse the response
-            embedding_data = response.json()
-            embedding = np.array(embedding_data["data"][0]["embedding"])
-
-            # Ensure 2D array
-            if embedding.ndim == 1:
-                embedding = embedding.reshape(1, -1)
-            elif embedding.ndim > 2:
-                embedding = embedding.squeeze()
-                if embedding.ndim > 2:
-                    raise ValueError(f"Invalid embedding shape: {embedding.shape}")
-                if embedding.ndim == 1:
-                    embedding = embedding.reshape(1, -1)
-
-            return embedding
-
-        except Exception as e:
-            print(f"Error generating embedding for text '{text[:100]}...': {str(e)}")
-            print(f"Error type: {type(e).__name__}")
-            return None
+        return self.get_embeddings([text])[0]
 
 
 class InformationDB:
@@ -190,8 +238,8 @@ class InformationDB:
 
     def process_batch(self, batch: List[Dict], news_type: str) -> List[tuple]:
         results = []
-        for row in tqdm(batch, desc="Processing items", leave=False):
-            embedding = self.worker.get_embedding(row["content"])
+        embeddings = self.worker.get_embeddings([row["content"] for row in batch])
+        for row, embedding in zip(batch, embeddings):
             if embedding is not None:
                 metadata = {
                     "content": row["content"],
@@ -221,6 +269,74 @@ class InformationDB:
 
                 results.append((embedding, metadata))
         return results
+
+    def build_from_daily_news_pickle(
+        self,
+        pickle_path: str,
+        batch_size: int = 32,
+        force: bool = False,
+    ) -> bool:
+        """Build an index from ``sorted_impact_news.pkl`` style daily news data."""
+        if not force and self.load_database():
+            print("Loaded existing database from disk")
+            return True
+
+        daily_news = pd.read_pickle(pickle_path)
+        required_columns = {"cal_date", "news"}
+        if not required_columns.issubset(daily_news.columns):
+            raise ValueError(
+                f"{pickle_path} must contain columns: {sorted(required_columns)}"
+            )
+
+        records = []
+        for row in daily_news.itertuples(index=False):
+            news_items = row.news if isinstance(row.news, list) else []
+            for text in news_items:
+                if not isinstance(text, str) or not text.strip():
+                    continue
+                content = text.strip()
+                records.append(
+                    {
+                        "content": content,
+                        "title": content[:80],
+                        "datetime": pd.Timestamp(row.cal_date).strftime("%Y-%m-%d"),
+                        "source": Path(pickle_path).name,
+                    }
+                )
+
+        self.index = None
+        self.metadata = []
+        all_embeddings = []
+        for start in tqdm(
+            range(0, len(records), batch_size), desc="Embedding daily news"
+        ):
+            batch = records[start : start + batch_size]
+            batch_results = self.process_batch(batch, "daily_news")
+            if not batch_results:
+                continue
+            embeddings, metadata = zip(*batch_results)
+            all_embeddings.extend(embeddings)
+            self.metadata.extend(metadata)
+
+        if not all_embeddings:
+            raise RuntimeError("No embeddings were generated; index was not written")
+        if len(self.metadata) != len(records):
+            raise RuntimeError(
+                f"Only generated {len(self.metadata)} of {len(records)} embeddings; "
+                "index was not written"
+            )
+
+        vectors = np.vstack(all_embeddings).astype(np.float32)
+        self.index = faiss.IndexFlatL2(vectors.shape[1])
+        self.index.add(vectors)
+        if not self.save_database():
+            raise RuntimeError("Failed to save the news index")
+
+        print(
+            f"Built news index: {self.index.ntotal} vectors, "
+            f"dimension {self.index.d}, output {self.database_dir}"
+        )
+        return True
 
     def process_file(self, file_path: str) -> Optional[List[tuple]]:
         # 从文件路径判断新闻类型

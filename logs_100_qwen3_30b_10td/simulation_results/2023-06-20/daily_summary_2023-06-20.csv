@@ -1,0 +1,5 @@
+date,stock_code,closing_price,volume,transaction_count,large_order_net_inflow
+2023-06-20,FSEI,10.55,0,0,0
+2023-06-20,IEEI,11.01,0,0,0
+2023-06-20,TTEI,14.09,0,0,0
+2023-06-20,REEI,9.04,0,0,0

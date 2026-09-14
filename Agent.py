@@ -1,7 +1,7 @@
 """
 AI代理基础类模块
 
-该模块定义了一个通用的AI代理基础类，用于与OpenAI API进行交互。
+该模块定义了一个通用的AI代理基础类，用于与OpenAI或本地大模型API进行交互。
 支持多种AI模型、重试机制、并发API调用等功能。
 """
 
@@ -11,6 +11,7 @@ import random
 import time
 
 # 第三方库导入
+import requests
 import yaml
 from openai import OpenAI  # OpenAI官方客户端库
 from tenacity import retry, wait_fixed, stop_after_attempt  # 重试机制库
@@ -29,11 +30,12 @@ class BaseAgent:
 
     Attributes:
         config: 从配置文件加载的配置信息
-        api_keys: API密钥列表
+        api_type: API类型，可选 openai 或 local
+        api_keys: API密钥列表（本地模型可不配置）
         model_name: 使用的模型名称
         base_url: API基础URL
         default_system_prompt: 默认系统提示词
-        client: OpenAI客户端实例
+        client: OpenAI客户端实例（本地模型时为 None）
     """
 
     def __init__(
@@ -55,16 +57,38 @@ class BaseAgent:
             self.config = yaml.load(config_file, Loader=yaml.FullLoader)
 
         # 提取配置信息
-        self.api_keys = self.config["api_key"]  # API密钥列表
+        self.api_type = str(
+            self.config.get("api_type", self.config.get("provider", "openai"))
+        ).strip().lower()
+        self.api_keys = self.config.get("api_key", [])  # 本地模型不需要API密钥
+        if isinstance(self.api_keys, str):
+            self.api_keys = [self.api_keys]
         self.model_name = self.config["model_name"]  # 模型名称
         self.base_url = self.config["base_url"]  # API基础URL
+        self.request_timeout = self.config.get("timeout", 120)
+        self.local_think = self.config.get("think", False)
+        self.local_max_tokens = self.config.get("max_tokens")
         self.default_system_prompt = system_prompt  # 默认系统提示词
 
-        # 初始化OpenAI客户端，随机选择一个API密钥
-        self.client = OpenAI(
-            api_key=random.choice(self.api_keys),  # 从多个密钥中随机选择
-            base_url=self.base_url,  # 设置API基础URL
-        )
+        if self.api_type in {"local", "ollama"}:
+            # 同时支持 http://host:port 和完整的 /api/chat 地址。
+            self.local_chat_url = self.base_url.rstrip("/")
+            if not self.local_chat_url.endswith("/api/chat"):
+                self.local_chat_url += "/api/chat"
+            self.client = None
+        elif self.api_type == "openai":
+            if not self.api_keys:
+                raise ValueError("OpenAI API 配置缺少 api_key")
+            # 初始化OpenAI客户端，随机选择一个API密钥
+            self.client = OpenAI(
+                api_key=random.choice(self.api_keys),  # 从多个密钥中随机选择
+                base_url=self.base_url,  # 设置API基础URL
+                timeout=self.request_timeout,
+            )
+        else:
+            raise ValueError(
+                f"不支持的 api_type: {self.api_type}，请使用 openai 或 local"
+            )
 
     def __post_process(self, response):
         """
@@ -78,12 +102,25 @@ class BaseAgent:
         Returns:
             dict: 包含响应内容和token使用情况的字典
         """
+        if self.api_type in {"local", "ollama"}:
+            message = response.get("message") or {}
+            content = message.get("content")
+            if content is None:
+                raise ValueError("本地模型响应中缺少 message.content")
+            return {
+                "response": content,
+                "total_tokens": response.get("total_tokens")
+                or response.get("prompt_eval_count", 0)
+                + response.get("eval_count", 0),
+            }
+
+        usage = getattr(response, "usage", None)
         return {
             "response": response.choices[0].message.content,  # 提取AI生成的文本内容
-            "total_tokens": response.usage.total_tokens,  # 提取总的token使用数量
+            "total_tokens": getattr(usage, "total_tokens", 0),
         }
 
-    @retry(wait=wait_fixed(1000), stop=stop_after_attempt(10))
+    @retry(wait=wait_fixed(1), stop=stop_after_attempt(10))
     def __call_api(
         self,
         messages,
@@ -116,6 +153,38 @@ class BaseAgent:
             Exception: 当API调用失败时抛出异常
         """
         try:
+            if self.api_type in {"local", "ollama"}:
+                # Ollama 风格的 /api/chat 接口。当前只处理非流式响应。
+                local_kwargs = dict(kwargs)
+                think = local_kwargs.pop("think", self.local_think)
+                timeout = local_kwargs.pop("timeout", self.request_timeout)
+                num_predict = max_tokens
+                if self.local_max_tokens is not None:
+                    num_predict = min(num_predict, int(self.local_max_tokens))
+                local_kwargs.pop("stream", None)
+                supplied_options = local_kwargs.pop("options", {})
+                options = {
+                    "temperature": temperature,
+                    "num_predict": num_predict,
+                    "top_p": top_p,
+                    **supplied_options,
+                }
+                payload = {
+                    "model": self.model_name,
+                    "messages": messages,
+                    "stream": False,
+                    "think": think,
+                    "options": options,
+                    **local_kwargs,
+                }
+                response = requests.post(
+                    self.local_chat_url,
+                    json=payload,
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                return response.json()
+
             # 使用OpenAI客户端发送聊天完成请求
             response = self.client.chat.completions.create(
                 model=self.model_name,  # 模型名称
@@ -176,6 +245,9 @@ class BaseAgent:
             # 初始化消息列表（如果未提供）
             if messages is None:
                 messages = []
+            else:
+                # 不修改调用方传入的历史消息列表。
+                messages = [dict(message) for message in messages]
 
             # 检查并添加系统提示词（如果不存在）
             if not any(msg["role"] == "system" for msg in messages):

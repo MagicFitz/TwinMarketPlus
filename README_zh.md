@@ -26,9 +26,14 @@ TwinMarket 是一个创新的股票交易模拟系统，通过集成大语言模
 cp config/api_example.yaml config/api.yaml
 cp config/embedding_example.yaml config/embedding.yaml
 
-# 运行样例
+# 1000 用户运行
 bash script/run.sh
+
+# 100 用户运行
+bash script/run_100.sh
 ```
+
+使用学院 `qwen3-30b` vLLM 服务、重建新闻向量索引、运行 10 个交易日以及实时观察进度，请参阅[模拟运行指南](docs/SIMULATION_GUIDE_ZH.md)。
 
 ## 📝 开发指南
 

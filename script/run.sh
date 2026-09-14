@@ -1,56 +1,97 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-length=1000
-model='gemini'
-activate_prob="0.8"
-log_dir="logs_${length}_nips_${model}_${activate_prob}"
+set -euo pipefail
 
-rm -rf $log_dir
-# 创建日志目录
-mkdir -p "$log_dir"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "$PROJECT_ROOT"
 
-# 检查并自动设置数据库文件
-user_db_path="${log_dir}/user_${length}.db"
-forum_db_path="${log_dir}/forum_${length}.db"
+# 可通过同名环境变量覆盖的模拟参数。
+USER_COUNT="${USER_COUNT:-1000}"
+START_DATE="${START_DATE:-2023-06-15}"
+END_DATE="${END_DATE:-2023-06-30}"
+MAX_WORKERS="${MAX_WORKERS:-32}"
+ACTIVATE_PROB="${ACTIVATE_PROB:-0.8}"
+PROB_OF_TECHNICAL="${PROB_OF_TECHNICAL:-0.5}"
+PREPARE_ONLY="${PREPARE_ONLY:-0}"
+CONFIG_PATH="${CONFIG_PATH:-config/api.yaml}"
+TEMPLATE_DB="${TEMPLATE_DB:-data/sys_1000.db}"
+BELIEF_SOURCE="${BELIEF_SOURCE:-util/belief/belief_1000_0129.csv}"
+RUN_DIR="${RUN_DIR:-logs_${USER_COUNT}_qwen3_30b_10td}"
+PYTHON="${PYTHON:-venv/bin/python}"
 
-echo "=== 自动数据库设置 ==="
-
-# 检查用户数据库
-if [[ ! -f "$user_db_path" || $(stat -f%z "$user_db_path" 2>/dev/null || stat -c%s "$user_db_path" 2>/dev/null) -eq 0 ]]; then
-    echo "用户数据库不存在或为空，从模板复制..."
-    if [[ -f "data/sys_${length}.db" ]]; then
-        cp "data/sys_${length}.db" "$user_db_path"
-        echo "✅ 复制用户数据库: sys_${length}.db → user_${length}.db"
-    else
-        echo "❌ 找不到模板数据库: data/sys_${length}.db"
-        exit 1
-    fi
-else
-    echo "✅ 用户数据库已存在: $user_db_path"
+if [[ ! "$USER_COUNT" =~ ^[0-9]+$ ]] || (( USER_COUNT < 1 || USER_COUNT > 1000 )); then
+    echo "USER_COUNT 必须是 1 到 1000 之间的整数" >&2
+    exit 2
 fi
 
-# 论坛数据库初始化交由 simulation.py 在非 checkpoint 模式下处理
+if [[ "$PREPARE_ONLY" != "0" && "$PREPARE_ONLY" != "1" ]]; then
+    echo "PREPARE_ONLY 只能为 0 或 1" >&2
+    exit 2
+fi
 
-echo "===================="
+if [[ "$START_DATE" != "2023-06-15" ]]; then
+    echo "当前脚本用于全新运行，START_DATE 必须为 2023-06-15" >&2
+    echo "从其他日期续跑时请按照 docs/SIMULATION_GUIDE_ZH.md 操作" >&2
+    exit 2
+fi
 
-timestamp=$(date +%Y%m%d_%H%M%S)
-log_file="${log_dir}/simulation_${timestamp}.log"
+for required_path in "$PYTHON" "$CONFIG_PATH" "$TEMPLATE_DB" "$BELIEF_SOURCE"; do
+    if [[ ! -e "$required_path" ]]; then
+        echo "缺少运行文件: $required_path" >&2
+        exit 2
+    fi
+done
 
-# Run simulation (同时输出到终端和日志)
-echo "Simulation starting..."
-echo "Log file: ${log_file}"
-echo "===================="
+if [[ -e "$RUN_DIR" ]]; then
+    echo "运行目录已存在，拒绝覆盖: $RUN_DIR" >&2
+    echo "请设置新的 RUN_DIR，或先手动归档原目录" >&2
+    exit 2
+fi
 
-python simulation.py \
-    --log_dir $log_dir \
-    --forum_db "${log_dir}/forum_${length}.db" \
-    --user_db "${log_dir}/user_${length}.db" \
-    --user_graph_save_name "user_graph_${log_dir}" \
-    --start_date "2023-06-15" \
-    --end_date "2023-8-15" \
-    --max_workers 250 \
-    --config_path './config/api.yaml' \
-    --activate_prob ${activate_prob} \
-    2>&1 | tee "${log_file}"
+mkdir -p "$RUN_DIR"
 
-echo "Simulation completed!"
+USER_DB="$RUN_DIR/user_${USER_COUNT}.db"
+FORUM_DB="$RUN_DIR/forum_${USER_COUNT}.db"
+BELIEF_FILE="$RUN_DIR/belief_${USER_COUNT}.csv"
+LOG_FILE="$RUN_DIR/simulation.log"
+MPL_CACHE_DIR="$RUN_DIR/.matplotlib"
+mkdir -p "$MPL_CACHE_DIR"
+
+"$PYTHON" script/prepare_simulation_run.py \
+    --template-db "$TEMPLATE_DB" \
+    --belief-source "$BELIEF_SOURCE" \
+    --user-count "$USER_COUNT" \
+    --user-db "$USER_DB" \
+    --belief-output "$BELIEF_FILE"
+
+echo "=== TwinMarket 模拟配置 ==="
+echo "用户数量: $USER_COUNT"
+echo "日期范围: $START_DATE -> $END_DATE"
+echo "并发线程: $MAX_WORKERS"
+echo "激活概率: $ACTIVATE_PROB"
+echo "运行目录: $RUN_DIR"
+echo "观察命令: $PYTHON script/monitor_simulation.py --log-dir $RUN_DIR"
+echo "==========================="
+
+if [[ "$PREPARE_ONLY" == "1" ]]; then
+    echo "PREPARE_ONLY=1：数据准备完成，未启动模拟"
+    exit 0
+fi
+
+MPLCONFIGDIR="$MPL_CACHE_DIR" "$PYTHON" simulation.py \
+    --log_dir "$RUN_DIR" \
+    --forum_db "$FORUM_DB" \
+    --user_db "$USER_DB" \
+    --user_graph_save_name "user_graph_${USER_COUNT}" \
+    --start_date "$START_DATE" \
+    --end_date "$END_DATE" \
+    --max_workers "$MAX_WORKERS" \
+    --node "$USER_COUNT" \
+    --config_path "$CONFIG_PATH" \
+    --belief_init_path "$BELIEF_FILE" \
+    --activate_prob "$ACTIVATE_PROB" \
+    --prob_of_technical "$PROB_OF_TECHNICAL" \
+    2>&1 | tee "$LOG_FILE"
+
+echo "模拟完成，结果目录: $RUN_DIR"

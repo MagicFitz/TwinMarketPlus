@@ -1,0 +1,56 @@
+{
+  "date": "2023-06-15",
+  "stock_code": "REEI",
+  "closing_price": 9.12,
+  "buy_ratio": 11.11111111111111,
+  "sell_ratio": 88.88888888888889,
+  "buy_orders": [
+    {
+      "price": 9.14,
+      "quantity": 1191900,
+      "count": 1
+    },
+    {
+      "price": 9.13,
+      "quantity": 104800,
+      "count": 1
+    }
+  ],
+  "sell_orders": [
+    {
+      "price": 8.34,
+      "quantity": 209200,
+      "count": 2
+    },
+    {
+      "price": 8.9,
+      "quantity": 284200,
+      "count": 4
+    },
+    {
+      "price": 9.11,
+      "quantity": 131200,
+      "count": 2
+    },
+    {
+      "price": 9.12,
+      "quantity": 117600,
+      "count": 2
+    },
+    {
+      "price": 9.16,
+      "quantity": 200,
+      "count": 2
+    },
+    {
+      "price": 9.36,
+      "quantity": 108800,
+      "count": 2
+    },
+    {
+      "price": 9.49,
+      "quantity": 120200,
+      "count": 2
+    }
+  ]
+}

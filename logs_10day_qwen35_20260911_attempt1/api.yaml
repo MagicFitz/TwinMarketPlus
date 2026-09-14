@@ -1,0 +1,6 @@
+api_type: local
+model_name: qwen3.5:9b
+base_url: http://221.226.39.110:11434
+timeout: 300
+think: false
+max_tokens: 512

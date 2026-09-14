@@ -1,0 +1,3 @@
+stock_code,user_id,direction,executed_price,executed_quantity,original_quantity,unfilled_quantity,timestamp
+TTEI,14698538721,buy,14.09,13500,18600,5100,2023-06-19 14:47:19.201227
+TTEI,18294145217,sell,14.09,13500,13500,0,2023-06-19 14:36:39.157845

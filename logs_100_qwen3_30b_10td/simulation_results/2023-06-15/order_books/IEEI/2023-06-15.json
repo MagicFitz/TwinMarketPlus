@@ -1,0 +1,81 @@
+{
+  "date": "2023-06-15",
+  "stock_code": "IEEI",
+  "closing_price": 11.4,
+  "buy_ratio": 25.0,
+  "sell_ratio": 75.0,
+  "buy_orders": [
+    {
+      "price": 11.48,
+      "quantity": 594900,
+      "count": 1
+    },
+    {
+      "price": 11.35,
+      "quantity": 55200,
+      "count": 1
+    },
+    {
+      "price": 11.07,
+      "quantity": 58600,
+      "count": 1
+    },
+    {
+      "price": 10.87,
+      "quantity": 57100,
+      "count": 1
+    },
+    {
+      "price": 10.82,
+      "quantity": 61800,
+      "count": 1
+    },
+    {
+      "price": 10.7,
+      "quantity": 60800,
+      "count": 1
+    }
+  ],
+  "sell_orders": [
+    {
+      "price": 10.6,
+      "quantity": 82800,
+      "count": 2
+    },
+    {
+      "price": 10.7,
+      "quantity": 82000,
+      "count": 2
+    },
+    {
+      "price": 10.84,
+      "quantity": 77200,
+      "count": 2
+    },
+    {
+      "price": 11.06,
+      "quantity": 10800,
+      "count": 2
+    },
+    {
+      "price": 11.16,
+      "quantity": 165800,
+      "count": 4
+    },
+    {
+      "price": 11.17,
+      "quantity": 82000,
+      "count": 2
+    },
+    {
+      "price": 11.25,
+      "quantity": 68000,
+      "count": 2
+    },
+    {
+      "price": 11.4,
+      "quantity": 73800,
+      "count": 2
+    }
+  ]
+}

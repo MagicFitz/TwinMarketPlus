@@ -1,0 +1,6 @@
+api_type: openai
+api_key:
+  - EMPTY
+model_name: qwen3-30b
+base_url: http://221.226.39.110:8025/v1
+timeout: 300

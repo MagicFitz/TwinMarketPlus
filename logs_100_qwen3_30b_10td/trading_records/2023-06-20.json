@@ -1,0 +1,399 @@
+{
+    "10971969507": {
+        "stock_decisions": {
+            "TLEI": {
+                "action": "hold",
+                "target_position": 3.5,
+                "cur_position": 3.5,
+                "target_price": 11.67,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "CGEI": {
+                "action": "hold",
+                "target_position": 20.7,
+                "cur_position": 20.7,
+                "target_price": 9.81,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "MEI": {
+                "action": "hold",
+                "target_position": 0,
+                "cur_position": 0,
+                "target_price": 9.44,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "TTEI": {
+                "action": "buy",
+                "target_price": 14.74,
+                "target_position": 21.55,
+                "cur_position": 0,
+                "sub_orders": [
+                    {
+                        "quantity": 158700.0,
+                        "price": 14.74
+                    }
+                ],
+                "quantity": 158700
+            },
+            "EREI": {
+                "action": "hold",
+                "target_position": 57.3,
+                "cur_position": 57.3,
+                "target_price": 11.75,
+                "quantity": 0,
+                "sub_orders": []
+            }
+        }
+    },
+    "11879544818": null,
+    "11122220668": {
+        "stock_decisions": {
+            "MEI": {
+                "action": "hold",
+                "target_position": 0,
+                "cur_position": 0,
+                "target_price": 9.44,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "CGEI": {
+                "action": "hold",
+                "target_position": 12.5,
+                "cur_position": 12.5,
+                "target_price": 9.81,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "CPEI": {
+                "action": "hold",
+                "target_position": 11.8,
+                "cur_position": 11.8,
+                "target_price": 10.57,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "IEEI": {
+                "action": "buy",
+                "target_price": 11.18,
+                "target_position": 27.52,
+                "cur_position": 0,
+                "sub_orders": [
+                    {
+                        "quantity": 247200.0,
+                        "price": 11.18
+                    }
+                ],
+                "quantity": 247200
+            }
+        }
+    },
+    "11333599141": {
+        "stock_decisions": {
+            "TSEI": {
+                "action": "hold",
+                "target_position": 3.6,
+                "cur_position": 3.6,
+                "target_price": 5.62,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "FSEI": {
+                "action": "buy",
+                "target_price": 11.0,
+                "target_position": 12.0,
+                "cur_position": 0,
+                "sub_orders": [
+                    {
+                        "quantity": 109500.0,
+                        "price": 11.0
+                    }
+                ],
+                "quantity": 109500
+            },
+            "MEI": {
+                "action": "hold",
+                "target_position": 0,
+                "cur_position": 0,
+                "target_price": 9.44,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "CPEI": {
+                "action": "hold",
+                "target_position": 18.7,
+                "cur_position": 18.7,
+                "target_price": 10.57,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "EREI": {
+                "action": "hold",
+                "target_position": 16.0,
+                "cur_position": 16.0,
+                "target_price": 11.75,
+                "quantity": 0,
+                "sub_orders": []
+            }
+        }
+    },
+    "10724147209": null,
+    "12396165581": null,
+    "12097837305": null,
+    "11493212673": null,
+    "12361838557": null,
+    "13525233782": null,
+    "11305041210": null,
+    "11571942616": {
+        "error": "用户没有被激活"
+    },
+    "10913216320": null,
+    "10754302700": null,
+    "12643589089": null,
+    "10484770445": null,
+    "12223120086": null,
+    "11899768841": {
+        "error": "用户没有被激活"
+    },
+    "13502770246": null,
+    "10795720105": null,
+    "10164529319": null,
+    "10039126898": null,
+    "12001214030": null,
+    "14065196934": {
+        "stock_decisions": {
+            "TLEI": {
+                "action": "hold",
+                "target_position": 11.7,
+                "cur_position": 11.7,
+                "target_price": 11.67,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "FSEI": {
+                "action": "buy",
+                "target_price": 10.4,
+                "target_position": 12.0,
+                "cur_position": 0,
+                "sub_orders": [
+                    {
+                        "quantity": 113300.0,
+                        "price": 10.4
+                    }
+                ],
+                "quantity": 113300
+            },
+            "REEI": {
+                "action": "sell",
+                "target_position": 21.9,
+                "cur_position": 26.2,
+                "target_price": 8.6,
+                "sub_orders": [
+                    {
+                        "quantity": 49100.0,
+                        "price": 8.6
+                    }
+                ],
+                "quantity": 49100
+            },
+            "MEI": {
+                "action": "hold",
+                "target_position": 8.8,
+                "cur_position": 8.8,
+                "target_price": 9.44,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "CPEI": {
+                "action": "hold",
+                "target_position": 10.5,
+                "cur_position": 10.5,
+                "target_price": 10.57,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "EREI": {
+                "action": "hold",
+                "target_position": 0,
+                "cur_position": 0,
+                "target_price": 11.75,
+                "quantity": 0,
+                "sub_orders": []
+            }
+        }
+    },
+    "12230990767": null,
+    "12531352252": null,
+    "14176789381": {
+        "error": "用户没有被激活"
+    },
+    "12683994900": null,
+    "12504396640": null,
+    "10096603837": null,
+    "13538988864": null,
+    "13318910837": {
+        "error": "用户没有被激活"
+    },
+    "11295347571": null,
+    "13807252320": null,
+    "10495757594": null,
+    "10479479185": null,
+    "11946293378": null,
+    "10969908370": null,
+    "13175459731": null,
+    "14330189077": null,
+    "14098067423": null,
+    "13718764292": null,
+    "14982002792": null,
+    "13713918206": null,
+    "13548799342": null,
+    "10810341339": null,
+    "16428179942": {
+        "error": "用户没有被激活"
+    },
+    "13874817099": null,
+    "14284436976": null,
+    "15859559463": {
+        "error": "用户没有被激活"
+    },
+    "15248428748": null,
+    "12800575864": null,
+    "14698538721": null,
+    "14117819731": null,
+    "11580131025": null,
+    "15140267297": null,
+    "15936138124": null,
+    "14833475554": null,
+    "14261675192": null,
+    "14636916508": null,
+    "15798655996": null,
+    "15476317174": null,
+    "13623458861": {
+        "error": "用户没有被激活"
+    },
+    "14850654155": null,
+    "17991223664": {
+        "stock_decisions": {
+            "REEI": {
+                "action": "sell",
+                "target_position": 0.0,
+                "cur_position": 0.0,
+                "target_price": 9.31,
+                "sub_orders": [
+                    {
+                        "quantity": 100,
+                        "price": 9.31
+                    }
+                ],
+                "quantity": 100
+            },
+            "TSEI": {
+                "action": "hold",
+                "target_position": 0,
+                "cur_position": 0,
+                "target_price": 5.62,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "TLEI": {
+                "action": "hold",
+                "target_position": 57.5,
+                "cur_position": 57.5,
+                "target_price": 11.67,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "EREI": {
+                "action": "hold",
+                "target_position": 0,
+                "cur_position": 0,
+                "target_price": 11.75,
+                "quantity": 0,
+                "sub_orders": []
+            }
+        }
+    },
+    "15140174470": null,
+    "14114953131": null,
+    "18417169446": {
+        "error": "用户没有被激活"
+    },
+    "17449121021": null,
+    "16522401908": null,
+    "13726502735": null,
+    "17923845634": {
+        "stock_decisions": {
+            "MEI": {
+                "action": "hold",
+                "target_position": 0,
+                "cur_position": 0,
+                "target_price": 9.44,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "TLEI": {
+                "action": "hold",
+                "target_position": 28.2,
+                "cur_position": 28.2,
+                "target_price": 11.67,
+                "quantity": 0,
+                "sub_orders": []
+            },
+            "IEEI": {
+                "action": "buy",
+                "target_price": 11.73,
+                "target_position": 27.52,
+                "cur_position": 0,
+                "sub_orders": [
+                    {
+                        "quantity": 268800.0,
+                        "price": 11.73
+                    }
+                ],
+                "quantity": 268800
+            },
+            "EREI": {
+                "action": "hold",
+                "target_position": 66.6,
+                "cur_position": 66.6,
+                "target_price": 11.75,
+                "quantity": 0,
+                "sub_orders": []
+            }
+        }
+    },
+    "14746977810": null,
+    "17692596259": null,
+    "18112277402": null,
+    "14490236363": null,
+    "17315640602": {
+        "error": "用户没有被激活"
+    },
+    "17054827039": {
+        "error": "用户没有被激活"
+    },
+    "17355311921": null,
+    "16606520367": null,
+    "17007859733": null,
+    "16870676954": null,
+    "16275556134": null,
+    "15641067450": null,
+    "16553474291": null,
+    "17079708464": null,
+    "16704257100": null,
+    "17307846548": null,
+    "17763391970": null,
+    "18104547745": null,
+    "15722095023": null,
+    "18045521502": null,
+    "18672906501": null,
+    "17024940274": null,
+    "18134463038": null,
+    "17406845799": null,
+    "18294145217": null,
+    "17568198236": null,
+    "17913295683": null,
+    "15394414297": null
+}

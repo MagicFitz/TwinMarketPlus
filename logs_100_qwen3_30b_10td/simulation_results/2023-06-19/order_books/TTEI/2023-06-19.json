@@ -1,0 +1,26 @@
+{
+  "date": "2023-06-19",
+  "stock_code": "TTEI",
+  "closing_price": 14.09,
+  "buy_ratio": 33.33333333333333,
+  "sell_ratio": 66.66666666666666,
+  "buy_orders": [
+    {
+      "price": 14.36,
+      "quantity": 18600,
+      "count": 1
+    }
+  ],
+  "sell_orders": [
+    {
+      "price": 14.09,
+      "quantity": 13500,
+      "count": 1
+    },
+    {
+      "price": 14.45,
+      "quantity": 13600,
+      "count": 1
+    }
+  ]
+}

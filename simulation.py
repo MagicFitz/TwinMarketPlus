@@ -454,6 +454,7 @@ def init_simulation(
             start_date="2023-01-01",  # 图构建起始日期
             end_date=current_date.strftime("%Y-%m-%d"),  # 图构建结束日期
             save_name=f'{user_graph_save_name}_{current_date.strftime("%Y-%m-%d")}',  # 保存名称
+            output_dir=os.path.join(log_dir, "graphs"),
             save=True,  # 保存图文件
         )
         print(

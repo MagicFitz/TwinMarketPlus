@@ -1,0 +1,66 @@
+{
+  "date": "2023-06-15",
+  "stock_code": "FSEI",
+  "closing_price": 10.71,
+  "buy_ratio": 45.45454545454545,
+  "sell_ratio": 54.54545454545454,
+  "buy_orders": [
+    {
+      "price": 10.99,
+      "quantity": 784900,
+      "count": 1
+    },
+    {
+      "price": 10.97,
+      "quantity": 78100,
+      "count": 1
+    },
+    {
+      "price": 10.9,
+      "quantity": 82000,
+      "count": 1
+    },
+    {
+      "price": 10.75,
+      "quantity": 79800,
+      "count": 1
+    },
+    {
+      "price": 10.24,
+      "quantity": 100200,
+      "count": 1
+    }
+  ],
+  "sell_orders": [
+    {
+      "price": 9.86,
+      "quantity": 550400,
+      "count": 1
+    },
+    {
+      "price": 9.91,
+      "quantity": 59200,
+      "count": 1
+    },
+    {
+      "price": 10.28,
+      "quantity": 50800,
+      "count": 1
+    },
+    {
+      "price": 10.34,
+      "quantity": 50000,
+      "count": 1
+    },
+    {
+      "price": 10.68,
+      "quantity": 235700,
+      "count": 1
+    },
+    {
+      "price": 10.71,
+      "quantity": 48400,
+      "count": 1
+    }
+  ]
+}
