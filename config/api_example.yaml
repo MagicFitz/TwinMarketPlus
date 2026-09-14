@@ -2,4 +2,14 @@ api_key:
   - sk-xxxx
 model_name: gpt-4o
 base_url: https://openrouter.ai/api/v1
+provider: openrouter
 
+# Optional model-level overrides.  max_tokens is automatically limited by both
+# max_output_tokens and the estimated remaining context window.
+model_capabilities:
+  gpt-4o:
+    context_window: 128000
+    max_output_tokens: 16384
+    supports:
+      frequency_penalty: true
+      presence_penalty: true

@@ -1,4 +1,5 @@
 api_type: openai
+provider: vllm
 api_key:
   - EMPTY
 model_name: qwen3-30b

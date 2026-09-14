@@ -7,7 +7,5 @@ openai>=1.0.0
 pandas
 pyyaml
 requests
-tenacity
 tqdm
 faiss-cpu
-
