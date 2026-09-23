@@ -60,3 +60,4 @@ config/embedding.yaml
 # *.yml
 
 logs*/data/guba_data.csv
+studio/backend/data/

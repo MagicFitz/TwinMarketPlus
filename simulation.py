@@ -17,6 +17,7 @@ import sqlite3
 import threading
 from contextlib import closing
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Dict, Literal, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError
 
@@ -26,11 +27,15 @@ import yaml
 from openai import OpenAI
 from tqdm import tqdm
 
+from runtime import EventStore, RuntimeObserver
+from runtime.schemas import Scope
+
 # 本地模块导入
 import trader.trading_agent as TradingAgent
 from Agent import BaseAgent
 from trader.matching_engine import test_matching_system, update_profiles_table_holiday
 from trader.utility import init_system
+from script.run_contract import atomic_json_write, clear_date_scoped_artifacts
 from util.UserDB import (
     get_all_user_ids,
     get_user_profile,
@@ -66,6 +71,19 @@ logging.basicConfig(
 lock = threading.Lock()
 
 
+def write_checkpoint(state_path: str | None, completed_date: pd.Timestamp) -> None:
+    if not state_path:
+        return
+    path = Path(state_path)
+    state = json.loads(path.read_text(encoding="utf-8"))
+    state["checkpoint"] = {
+        "last_completed_date": completed_date.strftime("%Y-%m-%d"),
+        "next_date": (completed_date + timedelta(days=1)).strftime("%Y-%m-%d"),
+    }
+    state["updated_at"] = datetime.now().astimezone().isoformat()
+    atomic_json_write(path, state)
+
+
 def process_user_input(
     user_id,
     user_db,
@@ -85,6 +103,7 @@ def process_user_input(
     activate_maapping,
     belief_args,
     config_path,
+    observer: RuntimeObserver | None = None,
 ):
     """
     处理单个用户的交易输入和决策过程
@@ -113,6 +132,10 @@ def process_user_input(
         tuple: (user_id, forum_args, decision_result, post_response_args)
     """
     try:
+        worker_id = f"thread-{threading.get_ident()}"
+        if observer:
+            observer.started(Scope.AGENT, "state", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=worker_id,
+                             input_summary={"activation": bool(activate_maapping.get(user_id, False))}, message="正在读取 Agent 状态")
         # 获取用户交易策略
         user_strategy = df_strategy[df_strategy["user_id"] == user_id].iloc[0][
             "strategy"
@@ -141,6 +164,12 @@ def process_user_input(
         # 设置用户状态标识
         is_top_user = user_id in top_user
         is_activate_user = activate_maapping[user_id]
+
+        if observer:
+            observer.completed(Scope.AGENT, "state", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=worker_id,
+                               output_summary={"strategy": user_strategy, "active": is_activate_user, "cash": user_profile.get("current_cash"), "positions": len(stock_ids)}, message="Agent 状态已就绪")
+            observer.started(Scope.AGENT, "perception", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=worker_id,
+                             input_summary={"trading_day": is_trading_day}, message="正在收集市场与社交信息")
 
         # 获取用户信念值（从不同数据源根据日期获取）
         try:
@@ -194,6 +223,12 @@ def process_user_input(
             belief=belief,  # 用户信念值
         )
 
+        if observer:
+            observer.completed(Scope.AGENT, "perception", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=worker_id,
+                               output_summary={"news_available": bool(import_news), "candidate_assets": len(stock_ids)}, message="感知信息已准备")
+            observer.started(Scope.AGENT, "interpretation", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=worker_id,
+                             input_summary={"belief": belief}, message="正在形成市场判断")
+
         # 调用交易代理的主要处理逻辑，获取交易决策和论坛互动结果
         (
             forum_args,
@@ -207,6 +242,25 @@ def process_user_input(
             debug=debug,  # 调试模式标识
             day_1st=day_1st,  # 是否为第一天
         )
+
+        if observer:
+            decisions = decision_result.get("stock_decisions", {}) if isinstance(decision_result, dict) else {}
+            action_counts = {"buy": 0, "sell": 0, "hold": 0, "orders": 0}
+            for item in decisions.values():
+                if not isinstance(item, dict):
+                    continue
+                action = str(item.get("action", "")).lower()
+                if action in action_counts:
+                    action_counts[action] += 1
+                action_counts["orders"] += len(item.get("sub_orders") or [])
+            observer.completed(Scope.AGENT, "interpretation", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=worker_id,
+                               output_summary={"belief": belief, "llm_called": bool(is_activate_user)}, message="市场判断已完成")
+            observer.started(Scope.AGENT, "decision", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=worker_id, message="正在生成交易意图")
+            observer.completed(Scope.AGENT, "decision", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=worker_id,
+                               output_summary={"has_decision": decision_result is not None, **action_counts}, message="交易意图已生成")
+            observer.started(Scope.AGENT, "action", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=worker_id, message="正在生成可执行动作")
+            observer.completed(Scope.AGENT, "action", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=worker_id,
+                               output_summary={**action_counts, "post_intent": int(post_response_args is not None), "interaction_intent": int(forum_args is not None)}, message="可执行动作已生成")
 
         # 保存用户与AI的对话记录（线程安全）
         if conversation_history:
@@ -222,12 +276,20 @@ def process_user_input(
                 with open(conversation_file, "w", encoding="utf-8") as f:
                     json.dump(conversation_history, f, indent=4, ensure_ascii=False)
 
+        if observer:
+            observer.started(Scope.AGENT, "commit", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=worker_id, message="正在提交 Agent 产物")
+            observer.completed(Scope.AGENT, "commit", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=worker_id,
+                               output_summary={"conversation_saved": bool(conversation_history)}, message="Agent 产物已提交")
+
         # 返回处理结果：用户ID、论坛互动参数、交易决策结果、帖子回复参数
         return user_id, forum_args, decision_result, post_response_args
 
     except Exception as e:
         # 异常处理：打印错误信息并返回错误状态
         print(f"处理用户 {user_id} 时出错: {e}")
+        if observer:
+            observer.failed(Scope.AGENT, "commit", simulation_date=current_date.strftime("%Y-%m-%d"), agent_id=str(user_id), worker_id=f"thread-{threading.get_ident()}",
+                            message="Agent 处理失败，运行将继续", error_code=type(e).__name__, error_summary=str(e))
         return user_id, {"error": str(e)}, None, None
 
 
@@ -249,6 +311,9 @@ def init_simulation(
     top_n_user: float = 0.1,
     config_path: str = "./config/api.yaml",
     activate_prob: float = 1.0,
+    checkpoint_state_path: str | None = None,
+    runtime_events_path: str | None = None,
+    run_id: str | None = None,
 ):
     """
     初始化并运行股票交易模拟系统
@@ -274,11 +339,15 @@ def init_simulation(
         config_path: API配置文件路径
         activate_prob: 用户激活概率
     """
+    # RuntimeObserver 是可选的，不能改变旧脚本或市场算法的控制流。
+    observer = RuntimeObserver(run_id or Path(log_dir).name, EventStore(Path(runtime_events_path or Path(log_dir) / "events.jsonl")))
+    observer.started(Scope.RUN, "simulation", message="模拟主流程开始")
     # ============================ 模拟初始化 ============================
     current_date = start_date
 
-    # 清空数据库中未来日期的数据，确保模拟的一致性
+    # 清空数据库与日期产物中未来数据；两者使用相同的包含边界。
     init_system(current_date, user_db, forum_db)
+    clear_date_scoped_artifacts(Path(log_dir), current_date.strftime("%Y-%m-%d"))
 
     # 加载重要新闻数据（已按影响力排序）
     df_news = pd.read_pickle("data/sorted_impact_news.pkl")
@@ -310,6 +379,8 @@ def init_simulation(
 
         # 检查当前日期是否为交易日
         is_trading_day = current_date in trading_days
+        date_string = current_date.strftime("%Y-%m-%d")
+        observer.started(Scope.DAY, "prepare", simulation_date=date_string, input_summary={"trading_day": is_trading_day}, message="正在准备当日市场环境")
 
         # 根据是否为交易日加载相应的股票数据
         if is_trading_day:
@@ -460,6 +531,8 @@ def init_simulation(
         print(
             f"用户关系图属性: {current_user_graph.number_of_nodes()} 个节点, {current_user_graph.number_of_edges()} 条边"
         )
+        observer.completed(Scope.DAY, "prepare", simulation_date=date_string,
+                           output_summary={"agents": len(all_user), "trading_day": is_trading_day, "graph_nodes": current_user_graph.number_of_nodes()}, message="当日环境已准备")
 
         # 根据节点度数获取顶级用户列表
         top_user = get_top_n_users_by_degree(
@@ -468,6 +541,7 @@ def init_simulation(
 
         # ============================ 并发处理用户输入 ============================
         print(f"开始处理 {len(all_user)} 个用户，使用 {max_workers} 个工作线程...")
+        observer.started(Scope.DAY, "agents", simulation_date=date_string, input_summary={"agents": len(all_user), "max_workers": max_workers}, message="正在处理 Agent")
 
         # 初始化结果存储列表
         results = []  # 交易决策结果
@@ -498,6 +572,7 @@ def init_simulation(
                     activate_maapping,
                     belief_args,
                     user_config_mapping[user_id],  # 传入用户对应的配置
+                    observer,
                 )
                 for user_id in all_user
             ]
@@ -545,6 +620,7 @@ def init_simulation(
                         activate_maapping,
                         belief_args,
                         fallback_config_path,
+                        observer,
                     )
                     try:
                         # 重试任务的结果处理
@@ -560,6 +636,9 @@ def init_simulation(
                 except Exception as e:
                     # 其他异常处理
                     print(f"[输入处理] 处理用户 {user_id} 时出错: {e}")
+
+        observer.completed(Scope.DAY, "agents", simulation_date=date_string,
+                           output_summary={"processed": len(results), "failed": sum(result is None for _, result in results)}, message="Agent 处理阶段完成")
 
         # ============================ 结果文件保存 ============================
         # 保存交易决策结果
@@ -637,6 +716,8 @@ def init_simulation(
         # ============================ 交易系统更新 ============================
         # 根据是否为交易日选择不同的更新策略
         if is_trading_day:
+            observer.started(Scope.DAY, "market", simulation_date=date_string, message="正在执行市场撮合")
+            observer.started(Scope.MARKET, "matching", simulation_date=date_string, input_summary={"decision_records": len(results)}, message="正在收集订单并撮合")
             # 交易日：运行交易匹配系统，处理所有交易请求
             test_matching_system(
                 current_date=current_date.strftime("%Y-%m-%d"),
@@ -644,16 +725,29 @@ def init_simulation(
                 db_path=user_db,
                 json_file_path=f"{log_dir}/trading_records/{current_date.strftime('%Y-%m-%d')}.json",
             )
+            observer.completed(Scope.DAY, "market", simulation_date=date_string, message="市场撮合完成")
+            transaction_file = Path(log_dir) / "simulation_results" / date_string / f"transactions_{date_string}.csv"
+            try:
+                with transaction_file.open(encoding="utf-8") as handle:
+                    matches = max(0, sum(1 for _ in handle) - 1)
+            except OSError:
+                matches = None
+            observer.completed(Scope.MARKET, "matching", simulation_date=date_string,
+                               output_summary={"decisions": len(results), "matches": matches}, message="市场撮合产物已写入")
         else:
+            observer.skipped(Scope.DAY, "market", simulation_date=date_string, substage="market_closed", message="Market Closed / No matching executed")
+            observer.skipped(Scope.MARKET, "matching", simulation_date=date_string, substage="market_closed", message="Market Closed / No matching executed")
             # 非交易日：仅更新用户资料表（不处理交易）
             update_profiles_table_holiday(
                 current_date=current_date.strftime("%Y-%m-%d"), db_path=user_db
             )
 
         # ============================ 论坛互动处理 ============================
+        observer.started(Scope.DAY, "social", simulation_date=date_string, message="正在更新社交环境")
+        observer.started(Scope.SOCIAL, "update", simulation_date=date_string, message="正在更新论坛互动")
+        successful_actions = 0
         if not day_1st:
             # 非第一天：处理用户在论坛中的互动行为
-            successful_actions = 0
             print(f"开始处理 {len(forum_args_list)} 个用户的论坛互动...")
 
             if forum_args_list:
@@ -687,9 +781,21 @@ def init_simulation(
             update_posts_score_by_date_range(
                 db_path=forum_db, end_date=current_date.strftime("%Y-%m-%d")
             )
+        observer.completed(Scope.DAY, "social", simulation_date=date_string,
+                           output_summary={"forum_actions": len(forum_args_list), "posts": successful_posts}, message="社交环境更新完成")
+        observer.completed(Scope.SOCIAL, "update", simulation_date=date_string,
+                           output_summary={"posts": successful_posts, "interactions": successful_actions}, message="论坛互动已提交")
+
+        # A checkpoint is written only after the entire day (including forum
+        # writes) succeeds, so next_date is always safe to regenerate.
+        observer.started(Scope.DAY, "commit", simulation_date=date_string, message="正在提交当日 checkpoint")
+        write_checkpoint(checkpoint_state_path, current_date)
+        observer.completed(Scope.DAY, "commit", simulation_date=date_string, message="当日提交完成")
 
         # 日期递增，进入下一天的模拟
         current_date += timedelta(days=1)
+
+    observer.completed(Scope.RUN, "simulation", message="模拟主流程完成")
 
 
 def parse_args():
@@ -783,6 +889,11 @@ def parse_args():
     parser.add_argument(
         "--config_path", type=str, default="./config/api.yaml", help="API配置文件路径"
     )
+    parser.add_argument("--random_seed", type=int, default=20260916, help="随机种子")
+    parser.add_argument("--checkpoint_state_path", type=str, default=None,
+                        help="运行契约 state.json 路径")
+    parser.add_argument("--runtime-events", type=str, default=None, help="RuntimeEvent JSONL 路径")
+    parser.add_argument("--run-id", type=str, default=None, help="稳定的运行标识")
 
     return parser.parse_args()
 
@@ -794,6 +905,7 @@ if __name__ == "__main__":
 
     # ============================ 参数解析与验证 ============================
     args = parse_args()
+    random.seed(args.random_seed)
 
     # 确保日志目录存在
     if not os.path.exists(args.log_dir):
@@ -838,5 +950,8 @@ if __name__ == "__main__":
         belief_init_path=args.belief_init_path,
         config_path=args.config_path,
         activate_prob=args.activate_prob,
+        checkpoint_state_path=args.checkpoint_state_path,
+        runtime_events_path=args.runtime_events,
+        run_id=args.run_id,
     )
     print("\n=== 模拟系统运行完成 ===")

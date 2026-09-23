@@ -40,6 +40,11 @@ class ProviderAwareRequestTests(unittest.TestCase):
         self.assertLessEqual(effective, 40)
         self.assertLessEqual(effective, 100 - input_tokens - 32)
 
+    def test_context_limit_fails_before_a_provider_request(self):
+        agent = make_agent()
+        with self.assertRaisesRegex(ValueError, "上下文窗口"):
+            agent._effective_max_tokens([{"role": "user", "content": "x" * 1000}], 1)
+
     def test_unsupported_sampling_parameters_are_not_sent(self):
         agent = make_agent()
         response = SimpleNamespace(usage=None, _request_id="provider-request")
@@ -73,6 +78,15 @@ class ProviderAwareRequestTests(unittest.TestCase):
         failure = requests.HTTPError("rate limited", response=response)
         success = SimpleNamespace(usage=None, _request_id="done")
         create = Mock(side_effect=[failure, success])
+        agent.client.chat.completions.create = create
+
+        self.assertIs(agent._BaseAgent__call_api([{"role": "user", "content": "hi"}]), success)
+        self.assertEqual(create.call_count, 2)
+
+    def test_timeout_is_retried(self):
+        agent = make_agent(max_retries=2)
+        success = SimpleNamespace(usage=None, _request_id="done")
+        create = Mock(side_effect=[requests.Timeout("timeout"), success])
         agent.client.chat.completions.create = create
 
         self.assertIs(agent._BaseAgent__call_api([{"role": "user", "content": "hi"}]), success)

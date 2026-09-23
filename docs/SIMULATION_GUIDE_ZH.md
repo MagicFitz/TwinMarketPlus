@@ -75,7 +75,9 @@ PY
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `USER_COUNT` | `1000` | 模拟用户数，范围 1–1000 |
-| `RUN_DIR` | `logs_${USER_COUNT}_qwen3_30b_10td` | 独立输出目录 |
+| `RUN_ID` | `run_<UTC 时间>-<pid>` | 运行唯一标识；输出固定为 `runs/<RUN_ID>` |
+| `RANDOM_SEED` | `20260916` | Python 随机数种子，写入运行清单 |
+| `RESUME_DATE` | 空 | 续跑日期，必须等于 state 记录的 `checkpoint.next_date` |
 | `START_DATE` | `2023-06-15` | 全新模拟开始日期 |
 | `END_DATE` | `2023-06-30` | 模拟结束日期 |
 | `MAX_WORKERS` | `32` | 本地并发线程数 |
@@ -84,7 +86,7 @@ PY
 | `PREPARE_ONLY` | `0` | 设为 `1` 时只生成用户数据库和 belief，不启动模拟 |
 | `CONFIG_PATH` | `config/api.yaml` | 聊天模型配置 |
 
-运行目录已经存在时脚本会拒绝覆盖；请设置新的 `RUN_DIR` 或先手动归档旧结果。脚本不会修改 `data/sys_1000.db`。
+运行目录由脚本原子创建，固定为 `./runs/<RUN_ID>`；相同 `RUN_ID` 会被拒绝，不能通过 `RUN_DIR` 改写位置。每次创建均保存 `manifest.json`（脱敏后的完整模型配置、数据/Agent Group/市场输入指纹、代码版本、种子和启动命令摘要）及 `state.json`。脚本不会修改 `data/sys_1000.db`。
 
 ## 4. 运行 10 个交易日
 
@@ -94,7 +96,7 @@ PY
 
 ```bash
 USER_COUNT=1000 \
-RUN_DIR="logs_1000_qwen3_30b_10td" \
+RUN_ID="market_1000_baseline" \
 MAX_WORKERS=32 \
 bash script/run.sh
 ```
@@ -108,19 +110,19 @@ bash script/run_100.sh
 也可以覆盖输出目录或并发数：
 
 ```bash
-RUN_DIR="logs_100_experiment_02" MAX_WORKERS=64 bash script/run_100.sh
+RUN_ID="market_100_experiment_02" MAX_WORKERS=64 bash script/run_100.sh
 ```
 
 默认 `ACTIVATE_PROB=0.8` 表示每天约 80% 的用户调用模型。首次验证吞吐时可降为 `0.05`：
 
 ```bash
-ACTIVATE_PROB=0.05 RUN_DIR="logs_100_smoke" bash script/run_100.sh
+ACTIVATE_PROB=0.05 RUN_ID="market_100_smoke" bash script/run_100.sh
 ```
 
 如果想先检查生成的 100 用户数据而不启动模型：
 
 ```bash
-PREPARE_ONLY=1 RUN_DIR="logs_100_prepared" bash script/run_100.sh
+PREPARE_ONLY=1 RUN_ID="market_100_prepared" bash script/run_100.sh
 ```
 
 服务宣称的请求吞吐不等同于本地最优线程数。建议从 32 开始，确认本机数据库写入和日志状态稳定后，再逐级增加到 80、160 或更高。
@@ -169,8 +171,9 @@ python script/monitor_simulation.py --log-dir "logs_100_qwen3_30b_10td" --json
 
 ## 7. 中断与续跑注意事项
 
-- 停止模拟使用 `Ctrl-C`，不要同时启动两个进程写同一组数据库。
-- 当前程序以 `start_date == 2023-06-15` 判断“全新运行”；其他开始日期会进入 checkpoint 模式。
-- 续跑前先复制整个运行目录作为备份，再使用原来的 `user` 和 `forum` 数据库。
-- `init_system` 会清理开始日期之后的数据库记录，因此续跑日期必须与已有输出状态一致。
+- 停止模拟使用 `Ctrl-C`。启动器会在运行期间创建 `run.lock`，第二个进程无法写入相同运行目录及其数据库。
+- 每个完整自然日结束后才更新 `state.json` 的 checkpoint；`last_completed_date` 之前的产物不可变。
+- 续跑必须使用同一 `RUN_ID`，并指定 `RESUME_DATE=state.json` 中的 `checkpoint.next_date`。例如：`RUN_ID=market_100_baseline RESUME_DATE=2023-06-16 bash script/run_100.sh`。
+- 续跑会一致地清理 `RESUME_DATE` 当日及之后的数据库记录和日期产物，然后重新生成该日期；其他日期会被拒绝，避免数据库与文件产物分叉。
+- 运行前可执行 `bash script/check.sh`，它会完成 Python 编译、Python 回归测试、Shell 语法、Studio 测试和 Studio 前端构建。
 - 如果日志长期不更新，先检查模型接口，再查看观察器列出的错误行和最后处理日期。
