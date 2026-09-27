@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Core color tokens */
+    --background: 45 25% 97%;
+    --foreground: 158 20% 13%;
+    --card: 42 33% 99%;
+    --card-foreground: 158 20% 13%;
+    --popover: 42 33% 99%;
+    --popover-foreground: 158 20% 13%;
+    --primary: 158 48% 28%;
+    --primary-foreground: 48 35% 97%;
+    --secondary: 42 29% 91%;
+    --secondary-foreground: 158 24% 18%;
+    --muted: 42 18% 92%;
+    --muted-foreground: 150 8% 43%;
+    --accent: 154 20% 89%;
+    --accent-foreground: 158 38% 22%;
+    --destructive: 5 68% 49%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 42 15% 82%;
+    --input: 42 15% 76%;
+    --ring: 158 48% 34%;
+
+    /* Runtime semantic tokens — every use also carries text and an icon. */
+    --status-pending: 150 6% 48%;
+    --status-running: 36 89% 45%;
+    --status-success: 151 46% 36%;
+    --status-danger: 5 68% 49%;
+    --status-skipped: 212 10% 48%;
+
+    /* Chart series tokens */
+    --chart-1: 158 48% 32%;
+    --chart-2: 35 88% 48%;
+    --chart-3: 204 57% 45%;
+    --chart-4: 273 38% 53%;
+    --chart-5: 5 63% 53%;
+
+    /* Typography, spacing, radius and elevation tokens */
+    --font-sans: "Inter", "Noto Sans SC", "PingFang SC", system-ui, sans-serif;
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --radius: 0.8rem;
+    --shadow-soft: 0 1px 2px hsl(158 20% 13% / 0.05), 0 8px 24px hsl(158 20% 13% / 0.04);
+    --shadow-lift: 0 18px 45px hsl(158 20% 13% / 0.16);
+  }
+
+  .dark {
+    --background: 157 17% 8%;
+    --foreground: 45 25% 93%;
+    --card: 157 15% 11%;
+    --card-foreground: 45 25% 93%;
+    --popover: 157 16% 10%;
+    --popover-foreground: 45 25% 93%;
+    --primary: 151 43% 57%;
+    --primary-foreground: 158 31% 9%;
+    --secondary: 156 12% 17%;
+    --secondary-foreground: 45 20% 90%;
+    --muted: 156 10% 16%;
+    --muted-foreground: 45 8% 64%;
+    --accent: 155 16% 19%;
+    --accent-foreground: 45 25% 93%;
+    --destructive: 4 62% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 156 10% 23%;
+    --input: 156 10% 27%;
+    --ring: 151 43% 57%;
+    --status-pending: 45 7% 63%;
+    --status-running: 41 92% 58%;
+    --status-success: 151 43% 57%;
+    --status-danger: 4 70% 63%;
+    --status-skipped: 210 10% 64%;
+    --shadow-soft: 0 1px 2px hsl(0 0% 0% / 0.28), 0 8px 24px hsl(0 0% 0% / 0.16);
+    --shadow-lift: 0 18px 45px hsl(0 0% 0% / 0.42);
+  }
+
+  * { @apply border-border; }
+  html { @apply bg-background; }
+  body {
+    @apply min-w-[320px] bg-background font-sans text-foreground antialiased;
+    background-image: radial-gradient(circle at 20% 0%, hsl(var(--primary) / 0.055), transparent 28rem);
+  }
+  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+  ::selection { background: hsl(var(--primary) / 0.22); }
+}
+
+@layer components {
+  .prose { color: hsl(var(--foreground)); line-height: 1.75; }
+  .prose > * + * { margin-top: 1rem; }
+  .prose h1, .prose h2, .prose h3 { margin-top: 1.8em; font-weight: 700; line-height: 1.25; }
+  .prose h1 { font-size: 1.9rem; }
+  .prose h2 { font-size: 1.45rem; border-bottom: 1px solid hsl(var(--border)); padding-bottom: .45rem; }
+  .prose h3 { font-size: 1.15rem; }
+  .prose a { color: hsl(var(--primary)); text-decoration: underline; text-underline-offset: 3px; }
+  .prose ul { list-style: disc; padding-left: 1.4rem; }
+  .prose ol { list-style: decimal; padding-left: 1.4rem; }
+  .prose blockquote { border-left: 3px solid hsl(var(--primary)); padding-left: 1rem; color: hsl(var(--muted-foreground)); }
+  .prose code { border-radius: .25rem; background: hsl(var(--muted)); padding: .15rem .35rem; font-family: var(--font-mono); font-size: .85em; }
+  .prose pre { overflow-x: auto; border-radius: var(--radius); background: hsl(var(--muted)); padding: 1rem; }
+  .prose pre code { padding: 0; background: transparent; }
+  .prose table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+  .prose th, .prose td { border: 1px solid hsl(var(--border)); padding: .5rem; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

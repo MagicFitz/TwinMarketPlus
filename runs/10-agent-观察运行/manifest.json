@@ -1,0 +1,55 @@
+{
+  "schema_version": 2,
+  "run_id": "10-agent-观察运行",
+  "created_at": "2026-09-24T07:51:28.718054+00:00",
+  "code_version": "e622b1bbbc98ea8d76b4898965ca955caa629af2",
+  "parameters": {
+    "user_count": 10,
+    "start_date": "2023-06-15",
+    "end_date": "2023-06-16",
+    "max_workers": 1,
+    "activate_prob": 0.2,
+    "prob_of_technical": 0.3,
+    "random_seed": 20260916,
+    "template_db": "data/sys_1000.db",
+    "belief_source": "util/belief/belief_1000_0129.csv",
+    "config_path": "config/api.yaml"
+  },
+  "inputs": {
+    "agent_group_template": {
+      "path": "data/sys_1000.db",
+      "sha256": "90b19c5cb9dac6708dff06fe4def5205cecef1a90da0f74eec449dab5a6769c3",
+      "bytes": 8966144
+    },
+    "belief_source": {
+      "path": "util/belief/belief_1000_0129.csv",
+      "sha256": "d28058f42a8c6fc733539d84edff4994fbd9036648a186c1ff7d5fc808f755de",
+      "bytes": 1294027
+    },
+    "model_config": {
+      "path": "config/api.yaml",
+      "sha256": "9fe39b7661e0ea18ba23bc11d4d63e3c72aa21fc813edb7729537edf72968aa5",
+      "bytes": 111
+    },
+    "market_stock_data": {
+      "path": "data/stock_data.csv",
+      "sha256": "166d2cd53037f0b27fc25b7653c013d144fc83e4f10ed0f718333d57cfd22124",
+      "bytes": 862568
+    },
+    "market_trading_days": {
+      "path": "data/trading_days.csv",
+      "sha256": "5bd8f6b6972b8433ed5a1ece27fa926df29a0f90517437fee41c6316f8cafaee",
+      "bytes": 20752
+    },
+    "market_news": {
+      "path": "data/sorted_impact_news.pkl",
+      "sha256": "09ed6be6bacf8a1edeb90311d3c477d9ea83be8a8f156da06705f9dba68e5b1c",
+      "bytes": 2435615
+    }
+  },
+  "command_summary": "backend.worker -> simulation.py (arguments stored in Registry config)",
+  "checkpoint_rule": {
+    "resume_date": "必须等于 state.json checkpoint.next_date",
+    "cleanup": "续跑日及之后的数据库记录和按日期产物将被重新生成"
+  }
+}

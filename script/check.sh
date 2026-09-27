@@ -12,12 +12,22 @@ if [[ ! -x "$PYTHON" ]]; then
     exit 2
 fi
 
-find . -path './venv' -prune -o -path './studio/node_modules' -prune -o -path './runs' -prune -o -name '*.py' -exec "$PYTHON" -m py_compile {} +
+printf '\n== Core simulation ==\n'
+"$PYTHON" -m py_compile Agent.py simulation.py
+find runtime trader util script tests -type f -name '*.py' -exec "$PYTHON" -m py_compile {} +
 "$PYTHON" -m unittest discover -s tests -v
-"$PYTHON" -m unittest discover -s studio/tests -v
 
 for shell_file in script/*.sh; do
     bash -n "$shell_file"
 done
 
-(cd studio && npm run test:sites && npm run build)
+printf '\n== Independent backend ==\n'
+find backend -type f -name '*.py' -exec "$PYTHON" -m py_compile {} +
+if rg -n --glob '*.py' '(^|[[:space:]])(from|import)[[:space:]]+studio([.[:space:]]|$)' backend; then
+    echo "backend production code must not import studio.*" >&2
+    exit 1
+fi
+"$PYTHON" -m unittest discover -s backend/tests -t . -v
+
+printf '\n== New frontend ==\n'
+(cd frontend && npm run test && npm run build)

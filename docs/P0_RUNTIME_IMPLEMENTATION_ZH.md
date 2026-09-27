@@ -7,7 +7,7 @@ order: 35
 
 # P0 Runtime Observatory 后端实现契约
 
-本文记录 P0 已实现的后端行为、API 语义与数据口径。前端位于 `studio/frontend/`，控制面位于 `studio/backend/`，框架无关的运行时事件模块位于 `runtime/`。普通 `simulation.log` 仅用于诊断；产品状态由 `events.jsonl` 中的 RuntimeEvent 重建。
+本文记录 P0 已实现的后端行为、API 语义与数据口径。前端位于 `studio/frontend/`，独立控制面位于仓库顶层 `backend/`，框架无关的运行时事件模块位于 `runtime/`。普通 `simulation.log` 仅用于诊断；产品状态由 `events.jsonl` 中的 RuntimeEvent 重建。
 
 ## 3.1 修复模型请求阻塞
 
@@ -19,11 +19,13 @@ order: 35
 
 ## 3.3 建立回归测试
 
-`script/check.sh` 统一执行 Python 编译、Python 单元测试、Shell 语法检查、Studio Worker 测试与 Vite 构建。RuntimeEvent、Registry、API 草稿行为均有自动化覆盖。
+`script/check.sh` 分别检查核心仿真、独立后端和 Studio 前端：核心 Python 编译/单测与 Shell 语法、后端编译/单测及 `studio.*` 依赖防线、前端 Sites Worker 测试与 Vite 构建。RuntimeEvent、Registry、API 草稿行为均有自动化覆盖。
 
 ## 4.1 持久化 Run 实体
 
-`studio/backend/registry.py` 使用 SQLite 持久化运行 ID、名称、时间、生命周期、健康、配置、输出目录、checkpoint、PID、退出码、失败原因、心跳和最后事件 ID。服务查询会核对 PID；活动 Worker 消失且没有结束标记时标为 failed，停止中的 Worker 消失则标为 cancelled。
+`backend/registry.py` 使用 SQLite 持久化运行 ID、名称、时间、生命周期、健康、配置、输出目录、checkpoint、PID、退出码、失败原因、心跳和最后事件 ID。服务查询会核对 PID；活动 Worker 消失且没有结束标记时标为 failed，停止中的 Worker 消失则标为 cancelled。
+
+后端入口为 `uvicorn backend.app.main:app`。`TWINMARKET_PROJECT_ROOT`、`TWINMARKET_DATA_DIR`、`TWINMARKET_RUNS_DIR`、`TWINMARKET_REGISTRY_PATH` 与 `TWINMARKET_ALLOWED_ORIGINS` 分别配置项目、数据、运行、Registry 和 CORS allowlist；HTTP 服务会把相同配置传给脱离请求生命周期的 Worker。
 
 ## 4.2 运行控制
 

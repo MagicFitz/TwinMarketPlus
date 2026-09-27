@@ -1,4 +1,6 @@
-# TwinMarket Studio
+# TwinMarket Studio（已冻结）
+
+> 此目录仅作为迁移参考保留。产品 Web 与 Electron renderer 统一使用仓库顶层 `frontend/`；不再在这里新增功能或修复与新前端重复的界面。
 
 四个主路由：`/studio/Experiment`、`/studio/Agent`、`/studio/Market`、`/studio/Setting`。
 
@@ -7,7 +9,7 @@
 ## 前后端边界
 
 - `frontend/`：新建实例、LiveSimulationView 与结果表 UI；`src/` 保留 Studio 壳层和只读资源页面。
-- `backend/`：FastAPI 控制/查询面、SQLite Run Registry、Process Manager 与 Worker。
+- `../backend/`：独立 FastAPI 控制/查询面、SQLite Run Registry、Process Manager 与 Worker。
 - `../../runtime/`：与 FastAPI/React 解耦的 RuntimeEvent、EventStore、Observer 和 Snapshot Reducer。
 - `../../runs/<run_id>/`：每个运行独占的配置快照、`events.jsonl`、`state.json`、数据库、日志和结果产物。
 
@@ -17,7 +19,7 @@
 
 ```sh
 cd /Users/fitz/Projects/TwinMarket
-venv/bin/python -m uvicorn studio.backend.app:app --host 127.0.0.1 --port 8766
+venv/bin/python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8766
 ```
 
 ```sh
@@ -40,7 +42,7 @@ Python 3.10+，Node 18+；浏览器自动化测试使用本机已安装的 Googl
 ## 数据口径与边界
 
 - `logs_*` 目录暂按一实验/一运行导入；没有编造 Experiment、Group 或 Environment 版本注册表。
-- 历史只读适配器 `server.py` 仍使用 `mode=ro` + `PRAGMA query_only=ON`；新 Registry 只写入 `studio/backend/data/` 与当前 `runs/<run_id>/`，不写既有 `logs_*`。
+- 独立后端的只读服务仍使用 `mode=ro` + `PRAGMA query_only=ON`；新 Registry 默认只写入 `backend/data/` 与当前 `runs/<run_id>/`，不写既有 `logs_*`。这些位置可通过后端环境变量覆盖。
 - 仅绑定 loopback；禁止将这个无鉴权的开发服务转发到公网。Vite 开发代理把 `/api` 指向本机 FastAPI。
 - 配置只输出白名单参数、模型名称和文件存在性；日志仅抽取正则匹配的运行事件，不返回原始响应、凭据或 HTTP 请求详情。PKL 只检查文件存在性与大小，不反序列化。
 - “近期有更新”只表示日志文件新鲜，不表示进程存活。“已完成”必须检测到结束标记。120 秒未更新标记“日志未更新”，不自动判定失败。

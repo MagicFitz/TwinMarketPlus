@@ -188,44 +188,44 @@ studio/                      # 迁移期间保留的旧实现
 
 ### 2.1 后端从 Studio 拆分
 
-- [ ] 在仓库顶层建立独立 `backend/` Python package 和测试目录。
-- [ ] 将 `studio/backend/app.py` 迁移为 `backend/app/main.py`。
-- [ ] 将 Registry、Process Manager、结果查询和 Worker 分别迁入独立模块。
-- [ ] 将 `studio/server.py` 中仍被 FastAPI 使用的 catalog、documentation、Agent、Market 和日志读取逻辑抽入后端 service。
-- [ ] 后端生产代码不再 import `studio.*`。
-- [ ] `runtime/` 保持框架无关，可同时被 `simulation.py` 与独立后端导入。
-- [ ] 更新 Worker 启动模块、命令摘要和所有 Python import 路径。
-- [ ] 将后端测试迁到 `backend/tests/`，保留原有只读安全与 Runtime 测试。
-- [ ] 为后端建立独立依赖文件和启动命令。
-- [ ] 通过环境变量配置项目根目录、数据目录、运行目录、Registry 路径和允许的前端 origin。
-- [ ] 保证迁移前后的 API 路径、响应结构和错误状态兼容。
-- [ ] 更新 `script/check.sh`，分别检查核心仿真、独立后端和前端。
+- [x] 在仓库顶层建立独立 `backend/` Python package 和测试目录。
+- [x] 将 `studio/backend/app.py` 迁移为 `backend/app/main.py`。
+- [x] 将 Registry、Process Manager、结果查询和 Worker 分别迁入独立模块。
+- [x] 将 `studio/server.py` 中仍被 FastAPI 使用的 catalog、documentation、Agent、Market 和日志读取逻辑抽入后端 service。
+- [x] 后端生产代码不再 import `studio.*`。
+- [x] `runtime/` 保持框架无关，可同时被 `simulation.py` 与独立后端导入。
+- [x] 更新 Worker 启动模块、命令摘要和所有 Python import 路径。
+- [x] 将后端测试迁到 `backend/tests/`，保留原有只读安全与 Runtime 测试。
+- [x] 为后端建立独立依赖文件和启动命令。
+- [x] 通过环境变量配置项目根目录、数据目录、运行目录、Registry 路径和允许的前端 origin。
+- [x] 保证迁移前后的 API 路径、响应结构和错误状态兼容。
+- [x] 更新 `script/check.sh`，分别检查核心仿真、独立后端和前端。
 
 ### 2.2 新 shadcn 前端基础
 
-- [ ] 在仓库顶层建立独立 `frontend/` 项目。
-- [ ] 使用 React + TypeScript + Vite + Tailwind CSS + shadcn/ui。
-- [ ] 建立颜色、字体、间距、圆角、阴影、状态色和图表色设计 tokens。
-- [ ] 配置深色/浅色主题，并确保 Runtime 状态语义不只依赖颜色。
-- [ ] 建立 App Shell、侧边导航、顶部栏、页面容器和响应式布局。
-- [ ] 建立 Button、Card、Badge、Tabs、Dialog、Drawer、Form、Table、Skeleton、Toast 等基础组件。
-- [ ] 建立 API client、统一错误结构、请求取消和 loading/empty/error 状态。
-- [ ] 从后端 OpenAPI schema 生成或维护类型安全的 TypeScript API 类型。
-- [ ] 建立 SSE hook，负责连接、cursor、重连、去重和清理。
-- [ ] 配置开发代理、生产 API base URL 和 Electron 本地服务地址注入点。
+- [x] 在仓库顶层建立独立 `frontend/` 项目。
+- [x] 使用 React + TypeScript + Vite + Tailwind CSS + shadcn/ui。
+- [x] 建立颜色、字体、间距、圆角、阴影、状态色和图表色设计 tokens。
+- [x] 配置深色/浅色主题，并确保 Runtime 状态语义不只依赖颜色。
+- [x] 建立 App Shell、侧边导航、顶部栏、页面容器和响应式布局。
+- [x] 建立 Button、Card、Badge、Tabs、Dialog、Drawer、Form、Table、Skeleton、Toast 等基础组件。
+- [x] 建立 API client、统一错误结构、请求取消和 loading/empty/error 状态。
+- [x] 从后端 OpenAPI schema 生成或维护类型安全的 TypeScript API 类型。
+- [x] 建立 SSE hook，负责连接、cursor、重连、去重和清理。
+- [x] 配置开发代理、生产 API base URL 和 Electron 本地服务地址注入点。
 
 ### 2.3 新前端功能迁移
 
-- [ ] 实现 `/runs` 实例列表和状态筛选。
-- [ ] 实现 `/runs/new` 创建实例页面。
-- [ ] 实现 `/runs/{run_id}` 实例详情与启动入口。
-- [ ] 实现 `/runs/{run_id}/live` Runtime Observatory。
-- [ ] 实现 `/runs/{run_id}/results` 结果数据表。
-- [ ] 迁移 Run Header、Day Cycle、Focus Agent、Worker Lanes、Today Summary、Recent Events 和 Diagnostics。
-- [ ] 迁移每日汇总、成交明细和 Agent 结果三个首要结果视图。
-- [ ] 迁移必要的 Agent、Market 和 Documentation 只读入口；非核心高级页允许延后。
-- [ ] 新前端达到核心闭环功能对等后，再停止维护旧 Studio UI。
-- [ ] Web 和 Electron 都只使用新 `frontend/`，不在两个 UI 代码库中重复开发。
+- [x] 实现 `/runs` 实例列表和状态筛选。
+- [x] 实现 `/runs/new` 创建实例页面。
+- [x] 实现 `/runs/{run_id}` 实例详情与启动入口。
+- [x] 实现 `/runs/{run_id}/live` Runtime Observatory。
+- [x] 实现 `/runs/{run_id}/results` 结果数据表。
+- [x] 迁移 Run Header、Day Cycle、Focus Agent、Worker Lanes、Today Summary、Recent Events 和 Diagnostics。
+- [x] 迁移每日汇总、成交明细和 Agent 结果三个首要结果视图。
+- [x] 迁移必要的 Agent、Market 和 Documentation 只读入口；非核心高级页允许延后。
+- [x] 新前端达到核心闭环功能对等后，再停止维护旧 Studio UI。
+- [x] Web 和 Electron 都只使用新 `frontend/`，不在两个 UI 代码库中重复开发。
 
 ### 2.4 真实闭环验收
 

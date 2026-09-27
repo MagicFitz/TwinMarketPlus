@@ -29,6 +29,7 @@ import random
 import re
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Dict, Literal
 
 # 第三方库导入
@@ -52,9 +53,10 @@ from .IndustryDict import *
 
 
 # 当前配置：使用配置文件管理
+DATA_DIR = Path(os.environ.get("TWINMARKET_DATA_DIR", "data"))
 INFORMATION_DB = InformationDB(
     config_path="config/embedding.yaml",  # 嵌入模型配置文件路径
-    database_dir="data/InformationDB_news_2023",  # 新闻数据库目录
+    database_dir=str(DATA_DIR / "InformationDB_news_2023"),  # 新闻数据库目录
 )
 INFORMATION_DB.load_database()  # 加载新闻数据库
 

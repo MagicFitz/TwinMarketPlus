@@ -349,12 +349,17 @@ def init_simulation(
     init_system(current_date, user_db, forum_db)
     clear_date_scoped_artifacts(Path(log_dir), current_date.strftime("%Y-%m-%d"))
 
+    # The independent backend passes TWINMARKET_DATA_DIR to detached Workers.
+    # Keep the historical relative ``data/`` location when the variable is not
+    # set so direct simulation.py invocations retain their existing behavior.
+    data_dir = Path(os.environ.get("TWINMARKET_DATA_DIR", "data"))
+
     # 加载重要新闻数据（已按影响力排序）
-    df_news = pd.read_pickle("data/sorted_impact_news.pkl")
+    df_news = pd.read_pickle(data_dir / "sorted_impact_news.pkl")
     df_news["cal_date"] = pd.to_datetime(df_news["cal_date"])
 
     # 加载交易日历数据，用于判断当日是否为交易日
-    df_trading_days = pd.read_csv("data/trading_days.csv")
+    df_trading_days = pd.read_csv(data_dir / "trading_days.csv")
     df_trading_days["pretrade_date"] = pd.to_datetime(df_trading_days["pretrade_date"])
     trading_days = list(df_trading_days["pretrade_date"].unique())
 

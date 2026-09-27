@@ -132,8 +132,9 @@ SCHEMA = {
 # ============================ 股票数据路径配置 ============================
 
 # 股票资料文件路径配置
-STOCK_PROFILE_PATH = "data/stock_profile.csv"  # 历史路径（备用）
-STOCK_PROFILE_PATH2 = "data/stock_profile.csv"  # 当前使用的股票资料路径
+DATA_DIR = os.environ.get("TWINMARKET_DATA_DIR", "data")
+STOCK_PROFILE_PATH = os.path.join(DATA_DIR, "stock_profile.csv")  # 历史路径（备用）
+STOCK_PROFILE_PATH2 = os.path.join(DATA_DIR, "stock_profile.csv")  # 当前使用的股票资料路径
 
 # ============================ 股票指数详细信息字典 ============================
 
