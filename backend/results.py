@@ -56,6 +56,8 @@ def results_summary(run: dict[str, Any]) -> dict[str, Any]:
     return {
         "items": rows,
         "source": "simulation_results/daily_summary_*.csv",
+        "market_snapshot_id": run["config"].get("market_snapshot_id"),
+        "allow_missing_news": run["config"].get("allow_missing_news", False),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 

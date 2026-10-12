@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
+from datetime import date, timedelta
 import shutil
 import sqlite3
 from pathlib import Path
@@ -17,6 +19,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--user-count", required=True, type=int)
     parser.add_argument("--user-db", required=True)
     parser.add_argument("--belief-output", required=True)
+    parser.add_argument("--market-snapshot")
+    parser.add_argument("--start-date")
     return parser.parse_args()
 
 
@@ -29,7 +33,7 @@ def read_beliefs(path: Path) -> tuple[list[str], dict[str, dict[str, str]]]:
         return list(reader.fieldnames), rows
 
 
-def prepare_database(template: Path, output: Path, user_count: int) -> list[str]:
+def prepare_database(template: Path, output: Path, user_count: int, *, market_snapshot: Path | None = None, start_date: str | None = None) -> list[str]:
     if output.exists():
         raise FileExistsError(f"拒绝覆盖已有数据库: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -69,6 +73,9 @@ def prepare_database(template: Path, output: Path, user_count: int) -> list[str]
             "DELETE FROM TradingDetails WHERE user_id "
             "NOT IN (SELECT user_id FROM keep_users)"
         )
+        if market_snapshot is not None:
+            inject_market_history(connection, market_snapshot, start_date)
+            seed_snapshot_accounts(connection, start_date)
         connection.commit()
         connection.execute("VACUUM")
 
@@ -87,6 +94,76 @@ def prepare_database(template: Path, output: Path, user_count: int) -> list[str]
     if integrity != "ok":
         raise RuntimeError(f"数据库完整性检查失败: {integrity}")
     return user_ids
+
+
+STOCK_COLUMNS = ("stock_id", "date", "close_price", "pre_close", "change", "pct_chg", "pe_ttm", "pb",
+                 "ps_ttm", "dv_ttm", "vol", "vol_5", "vol_10", "vol_30", "elg_amount_net",
+                 "ma_hfq_5", "ma_hfq_10", "ma_hfq_30")
+
+
+def inject_market_history(connection, snapshot, start_date):
+    """Replace only the private StockData, strictly before the first simulation day."""
+    import math
+    start_date = date.fromisoformat(str(start_date)).isoformat()
+    with (snapshot / "stock_data.csv").open(newline="", encoding="utf-8") as handle:
+        rows = [row for row in csv.DictReader(handle) if row["date"] < start_date]
+    if len({row["date"] for row in rows}) < 30:
+        raise ValueError("快照没有起始日前至少 30 个交易日的可见历史行情")
+    mapping = {"stock_id": "ts_code", "close_price": "close"}
+
+    def value(row, column):
+        raw = row.get(mapping.get(column, column))
+        if column in {"stock_id", "date"}:
+            return raw
+        # Legacy stock_data.csv used turnover in the volume position.
+        if column == "vol" and not raw:
+            raw = row.get("amount")
+        if column.startswith("vol_") and not raw:
+            raw = row.get(column.replace("vol_", "ma_amount_"))
+        if raw in (None, ""):
+            return None
+        number = float(raw)
+        return number if math.isfinite(number) else None
+
+    codes = {row["ts_code"] for row in rows}
+    if len(codes) != 10 or len({(row["ts_code"], row["date"]) for row in rows}) != len(rows):
+        raise ValueError("快照历史指数缺失或重复")
+    connection.execute("DELETE FROM StockData")
+    connection.executemany("INSERT INTO StockData (" + ",".join(STOCK_COLUMNS) + ") VALUES (" +
+                           ",".join("?" for _ in STOCK_COLUMNS) + ")",
+                           [tuple(value(row, column) for column in STOCK_COLUMNS) for row in rows])
+
+
+def seed_snapshot_accounts(connection, start_date):
+    """Seed private accounts on the preceding natural day at observable prices."""
+    previous = (date.fromisoformat(start_date) - timedelta(days=1)).isoformat() + " 00:00:00"
+    columns = [row[1] for row in connection.execute("PRAGMA table_info(Profiles)")]
+    profiles = connection.execute("SELECT * FROM Profiles WHERE created_at < ? ORDER BY created_at", (start_date,)).fetchall()
+    selected = {dict(zip(columns, row))["user_id"]: dict(zip(columns, row)) for row in profiles}
+    count = connection.execute("SELECT count(DISTINCT user_id) FROM Profiles").fetchone()[0]
+    if len(selected) != count:
+        raise ValueError("所选起始日前没有用户初始账户")
+    prices = dict(connection.execute("SELECT stock_id,close_price FROM StockData WHERE date=(SELECT max(date) FROM StockData)"))
+    connection.execute("DELETE FROM Profiles")
+    for profile in selected.values():
+        profile["created_at"] = previous
+        if {"cur_positions", "current_cash", "total_value"}.issubset(columns):
+            positions = json.loads(profile["cur_positions"] or "{}")
+            for code, position in positions.items():
+                if code not in prices:
+                    raise ValueError("初始持仓不在快照资产定义中")
+                position["current_value"] = float(position["shares"]) * prices[code]
+            total = float(profile["current_cash"]) + sum(p["current_value"] for p in positions.values())
+            for position in positions.values():
+                position["ratio"] = position["current_value"] / total * 100 if total else 0
+            profile["cur_positions"] = json.dumps(positions, ensure_ascii=False)
+            profile["total_value"] = total
+            if {"ini_cash", "total_return", "return_rate"}.issubset(columns):
+                initial = float(profile["ini_cash"])
+                profile["total_return"] = total - initial
+                profile["return_rate"] = (total - initial) / initial * 100 if initial else 0
+        connection.execute("INSERT INTO Profiles (" + ",".join(columns) + ") VALUES (" + ",".join("?" for _ in columns) + ")",
+                           [profile[column] for column in columns])
 
 
 def write_beliefs(
@@ -120,7 +197,10 @@ def main() -> int:
     if not belief_source.is_file():
         raise FileNotFoundError(f"belief 源文件不存在: {belief_source}")
 
-    selected_user_ids = prepare_database(template, user_db, args.user_count)
+    if args.market_snapshot and not args.start_date:
+        raise ValueError("--market-snapshot 必须同时提供 --start-date")
+    selected_user_ids = prepare_database(template, user_db, args.user_count,
+        market_snapshot=Path(args.market_snapshot) if args.market_snapshot else None, start_date=args.start_date)
     write_beliefs(belief_source, belief_output, selected_user_ids)
     print(
         f"已准备 {len(selected_user_ids)} 个用户: "

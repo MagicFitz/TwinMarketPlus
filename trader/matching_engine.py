@@ -1006,6 +1006,7 @@ def process_trading_day(
     df_stock: pd.DataFrame = None,
     df_stock_profile_real: pd.DataFrame = None,
     json_file_path: str = None,
+    real_data_path: str = None,
 ):
     """
     处理单个交易日的完整交易流程
@@ -1061,6 +1062,7 @@ def process_trading_day(
         output_dir=output_dir,
         db_path=db_path,
         df_stock=df_stock,
+        real_data_path=real_data_path,
     )
 
     # 更新Tradingdetails表
@@ -1078,7 +1080,7 @@ def update_stock_data_table(
     results: dict,
     current_date: str,
     db_path: str = "data/sys_100.db",
-    real_data_path: str = "data/stock_data.csv",
+    real_data_path: str = None,
     output_dir: str = "simulation_results",
     df_stock: pd.DataFrame = None,
 ):
@@ -1134,6 +1136,7 @@ def update_stock_data_table(
         current_date = pd.to_datetime(current_date)
 
         # 读取真实的历史数据（包含到2025年的数据）
+        real_data_path = real_data_path or os.path.join(os.environ.get("TWINMARKET_DATA_DIR", "data"), "stock_data.csv")
         if not os.path.exists(real_data_path):
             raise FileNotFoundError(f"历史交易数据文件 {real_data_path} 不存在")
         historical_data_real = pd.read_csv(real_data_path)
@@ -1823,6 +1826,7 @@ def test_matching_system(
     json_file_path: str = None,
     db_path: str = None,
     base_path: str = ".",
+    real_data_path: str = None,
 ):
     """
     交易撮合系统主测试函数
@@ -1896,11 +1900,12 @@ def test_matching_system(
                 df_stock_sim,
                 df_stock_profile_real,
                 json_file_path,
+                real_data_path=real_data_path,
             )
         else:
             update_profiles_table_holiday(current_date, db_path)
             update_stock_data_table_holiday(
-                current_date=current_date, db_path=db_path, df_stock=df_stock_sim
+                current_date=current_date, db_path=db_path, df_stock=df_stock_sim, real_data_path=real_data_path
             )
 
         print("\n===撮合交易完成===")
@@ -1916,7 +1921,7 @@ def test_matching_system(
 def update_stock_data_table_holiday(
     current_date: str,
     db_path: str = "data/sys_100.db",
-    real_data_path: str = "data/stock_data.csv",
+    real_data_path: str = None,
     df_stock: pd.DataFrame = None,
 ):
     """
@@ -1933,6 +1938,7 @@ def update_stock_data_table_holiday(
         current_date = pd.to_datetime(current_date)
 
         # 读取真实的历史数据（包含到2025年的数据）
+        real_data_path = real_data_path or os.path.join(os.environ.get("TWINMARKET_DATA_DIR", "data"), "stock_data.csv")
         if not os.path.exists(real_data_path):
             raise FileNotFoundError(f"历史交易数据文件 {real_data_path} 不存在")
         historical_data_real = pd.read_csv(real_data_path)

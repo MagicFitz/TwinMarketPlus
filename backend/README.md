@@ -45,3 +45,7 @@ venv/bin/python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8766
 ```
 
 该命令分别检查核心仿真、独立后端和 Studio 前端。
+
+## 日级市场快照
+
+Tushare 连接、独立同步 Worker、不可变快照和 Run 输入隔离见 [使用指南](../docs/MARKET_SNAPSHOTS_ZH.md)。本期接入交易日历、日线及可选每日估值；新闻缺失必须明确允许。运行接口测试可安装 `backend/requirements-dev.txt`。

@@ -1,6 +1,6 @@
 # Prototype Instructions
 
-Confirmed product architecture (2026-09-12): the four primary spaces are Experiment, Agent, Market, Setting. Experiment owns experiment composition, runs, monitoring and analysis. Agent owns reusable Agent Groups and reserves behavioral-finance tests. Market owns mechanisms, asset packs, data synchronization and environment snapshots. Setting owns model/data-source credentials and extensible global defaults. This prototype is strictly read-only: write workflows are labeled planned and never execute changes. Preserve existing simulations and the research landing page.
+Confirmed product architecture (2026-09-12): the four primary spaces are Experiment, Agent, Market, Setting. Experiment owns experiment composition, runs, monitoring and analysis. Agent owns reusable Agent Groups and reserves behavioral-finance tests. Market owns mechanisms, asset packs, data synchronization and environment snapshots. Setting owns model/data-source credentials and extensible global defaults. Run controls and the Tushare settings, market synchronization, immutable snapshots and snapshot selection workflows are active. Other resource-management write workflows remain planned. Preserve existing simulations and the research landing page.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
 

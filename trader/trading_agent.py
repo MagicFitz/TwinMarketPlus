@@ -54,11 +54,17 @@ from .IndustryDict import *
 
 # 当前配置：使用配置文件管理
 DATA_DIR = Path(os.environ.get("TWINMARKET_DATA_DIR", "data"))
-INFORMATION_DB = InformationDB(
-    config_path="config/embedding.yaml",  # 嵌入模型配置文件路径
-    database_dir=str(DATA_DIR / "InformationDB_news_2023"),  # 新闻数据库目录
-)
-INFORMATION_DB.load_database()  # 加载新闻数据库
+if os.environ.get("TWINMARKET_MARKET_SNAPSHOT_ID"):
+    # MVP snapshots explicitly contain no news: do not read the legacy index,
+    # initialize an embedding client, or create directories in immutable inputs.
+    from script.market_inputs import EmptyNewsIndex
+    INFORMATION_DB = EmptyNewsIndex()
+else:
+    INFORMATION_DB = InformationDB(
+        config_path="config/embedding.yaml",
+        database_dir=str(DATA_DIR / "InformationDB_news_2023"),
+    )
+    INFORMATION_DB.load_database()
 
 # 股票推荐系统（暂时未使用）
 # STOCK_REC = StockRecommender()

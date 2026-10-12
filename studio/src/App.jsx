@@ -11,6 +11,7 @@ import {
   Drawer,
   CodeBlock,
 } from "animal-island-ui";
+import { MarketWorkbench, TushareConnection } from "./MarketData.jsx";
 import { Documentation } from "./Documentation.jsx";
 import {
   LiveSimulationView,
@@ -1027,44 +1028,7 @@ function MarketSpace({ catalog }) {
             )}
           </Panel>
         )}
-        {tab === "data" && (
-          <Panel
-            title="数据集"
-            subtitle="只检查本地文件；存在不代表数据完整或索引可用。数据源凭据在 Setting 管理。"
-            action={<PlannedButton>更新数据</PlannedButton>}
-          >
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>数据集</th>
-                    <th>来源</th>
-                    <th>大小</th>
-                    <th>状态</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {catalog.inventory.map((d) => (
-                    <tr key={d.path}>
-                      <td>{d.name}</td>
-                      <td>{d.path}</td>
-                      <td>
-                        {d.bytes == null
-                          ? "—"
-                          : `${n(d.bytes / 1024 / 1024)} MB`}
-                      </td>
-                      <td>
-                        <Badge tone={d.available ? "app-teal" : "app-orange"}>
-                          {d.available ? "存在" : "缺失"}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        )}
+        {tab === "data" && <MarketWorkbench />}
       </div>
     </>
   );
@@ -1107,10 +1071,7 @@ function SettingSpace({ catalog, compact, setCompact }) {
               title="金融数据源"
               subtitle="连接访问归 Setting；拉取、更新数据归 Market。"
             >
-              <div className="connection">
-                <span className="grow">暂无连接</span>
-                <PlannedButton>添加数据源</PlannedButton>
-              </div>
+              <TushareConnection />
             </Panel>
           </section>
           <section id="preferences">

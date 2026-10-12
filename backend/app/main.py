@@ -25,7 +25,7 @@ from backend.results import (
     results_social,
     results_summary,
 )
-from backend.run_service import create_run, normalize_config
+from backend.run_service import create_run, normalize_config, write_manifest
 from backend.runtime_service import runtime_snapshot, store_for
 from backend.services.agents import AgentService
 from backend.services.catalog import CatalogService
@@ -34,6 +34,10 @@ from backend.services.logs import LogService
 from backend.services.market import MarketService
 from backend.services.model_settings import ModelSettingsService
 from backend.settings import Settings, get_settings
+from backend.market_data.errors import MarketError
+from backend.market_data.snapshots import resolve_snapshot
+from backend.services.data_sources import DataSourceService
+from backend.services.market_sync import MarketSyncService
 
 
 class RunCreate(BaseModel):
@@ -62,6 +66,20 @@ class EmbeddingModelUpdate(BaseModel):
     max_retries: int | None = Field(default=None, ge=0)
     # Omit this field to keep the current secret. Send an empty string to clear it.
     api_key: str | None = Field(default=None, max_length=2000)
+
+
+class DataSourceUpdate(BaseModel):
+    token: str | None = Field(default=None, max_length=2000)
+    enabled: bool = True
+
+
+class MarketSyncCreate(BaseModel):
+    source_id: str = "tushare"
+    mode: str = "incremental"
+    start_date: str | None = None
+    end_date: str | None = None
+    datasets: list[str] = Field(default_factory=lambda: ["trade_cal", "daily", "daily_basic"])
+    allow_missing_news: bool = False
 
 
 def _safe_output_dir(run: dict[str, Any], settings: Settings) -> Path:
@@ -95,6 +113,8 @@ def create_app(
     agent_service = AgentService(settings)
     market_service = MarketService(settings)
     log_service = LogService(settings)
+    data_source_service = DataSourceService(settings)
+    market_sync_service = MarketSyncService(settings)
 
     app = FastAPI(title="TwinMarket Control API", version="1.0")
     app.state.settings = settings
@@ -108,7 +128,7 @@ def create_app(
         CORSMiddleware,
         allow_origins=list(settings.allowed_origins),
         allow_credentials=False,
-        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
 
@@ -119,6 +139,10 @@ def create_app(
     @app.exception_handler(ConflictError)
     async def conflict(_, error):
         return JSONResponse(status_code=409, content={"error": str(error)})
+
+    @app.exception_handler(MarketError)
+    async def market_error(_, error):
+        return JSONResponse(status_code=error.status, content={"code": error.code, "error": str(error)})
 
     @app.exception_handler(ValueError)
     async def invalid(_, error):
@@ -176,6 +200,48 @@ def create_app(
             "embedding", body.model_dump(exclude_unset=True), api_key_provided="api_key" in body.model_fields_set
         )
 
+    @app.get("/api/settings/data-sources")
+    def data_sources():
+        return {"items": [data_source_service.get()]}
+
+    @app.put("/api/settings/data-sources/tushare")
+    def update_data_source(body: DataSourceUpdate):
+        return data_source_service.update(body.model_dump(exclude_unset=True))
+
+    @app.post("/api/settings/data-sources/tushare/test")
+    def test_data_source():
+        return data_source_service.test()
+
+    @app.get("/api/market/overview")
+    def market_overview():
+        return market_sync_service.overview()
+
+    @app.post("/api/market/sync-jobs", status_code=202)
+    def create_sync_job(body: MarketSyncCreate):
+        return market_sync_service.create(body.model_dump())
+
+    @app.get("/api/market/sync-jobs/{job_id}")
+    def get_sync_job(job_id: str):
+        market_sync_service.jobs()
+        return market_sync_service.registry.job(job_id)
+
+    @app.post("/api/market/sync-jobs/{job_id}/cancel")
+    def cancel_sync_job(job_id: str):
+        return market_sync_service.registry.cancel(job_id)
+
+    @app.get("/api/market/snapshots")
+    def market_snapshots():
+        return {"items": market_sync_service.registry.snapshots()}
+
+    @app.get("/api/market/snapshots/{snapshot_id}")
+    def market_snapshot(snapshot_id: str):
+        metadata, _ = resolve_snapshot(settings, snapshot_id, allow_missing_news=True)
+        return metadata
+
+    @app.post("/api/market/snapshots/{snapshot_id}/activate")
+    def activate_snapshot(snapshot_id: str):
+        return market_sync_service.activate(snapshot_id)
+
     @app.get("/api/documentation")
     def documentation(path: str | None = None):
         return documentation_service.documentation(path)
@@ -217,17 +283,26 @@ def create_app(
 
     @app.patch("/api/runs/{run_id}")
     def edit_draft(run_id: str, body: RunCreate):
-        run = registry.get(run_id)
-        if run["status"] != "draft":
-            raise ConflictError("已启动运行的配置不可原地修改；请复制为新实例")
-        # Reuse create-time normalization without allocating a directory.
-        config = normalize_config(body.config, settings)
-        return registry.update(
-            run_id,
-            name=body.name,
-            description=body.description,
-            config_json=json.dumps(config),
-        )
+        # Serialize with start/transition writers, including across API processes.
+        with registry.lock, registry.connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT * FROM runs WHERE run_id=?", (run_id,)).fetchone()
+            if row is None:
+                raise NotFoundError(run_id)
+            run = registry.row(row)
+            if run["status"] != "draft":
+                raise ConflictError("已启动运行的配置不可原地修改；请复制为新实例")
+            config = normalize_config(body.config, settings)
+            write_manifest(_safe_output_dir(run, settings), config, settings)
+            state_path = _safe_output_dir(run, settings) / "state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["checkpoint"]["next_date"] = config["start_date"]
+            temporary = state_path.with_name(".state.tmp")
+            temporary.write_text(json.dumps(state), encoding="utf-8")
+            temporary.replace(state_path)
+            db.execute("UPDATE runs SET name=?,description=?,config_json=?,checkpoint_json=? WHERE run_id=?",
+                       (body.name, body.description, json.dumps(config), json.dumps(state["checkpoint"]), run_id))
+        return registry.get(run_id)
 
     @app.post("/api/runs/{run_id}/copy", status_code=201)
     def copy_run(run_id: str):
@@ -237,7 +312,7 @@ def create_app(
             {
                 "name": f"{source['name']} 副本",
                 "description": source["description"],
-                "config": source["config"],
+                "config": {"market_data_mode": "legacy", "market_snapshot_id": None, **source["config"]},
             },
             settings,
         )

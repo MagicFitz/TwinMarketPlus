@@ -360,8 +360,8 @@ def init_simulation(
 
     # 加载交易日历数据，用于判断当日是否为交易日
     df_trading_days = pd.read_csv(data_dir / "trading_days.csv")
-    df_trading_days["pretrade_date"] = pd.to_datetime(df_trading_days["pretrade_date"])
-    trading_days = list(df_trading_days["pretrade_date"].unique())
+    from script.market_inputs import open_trading_dates, news_for_date
+    trading_days = open_trading_dates(df_trading_days)
 
     # 从数据库加载用户交易策略信息
     conn = sqlite3.connect(user_db)
@@ -399,7 +399,7 @@ def init_simulation(
             df_stock = None
 
         # 获取当日对应的新闻信息
-        import_news = df_news[df_news["cal_date"] == current_date].iloc[0]["news"]
+        import_news = news_for_date(df_news, current_date)
         # # 获取当天对应的新闻
         # if not day_1st:
         #     import_news = df_news[df_news['cal_date'] == current_date].iloc[0]['news']
@@ -727,6 +727,7 @@ def init_simulation(
             test_matching_system(
                 current_date=current_date.strftime("%Y-%m-%d"),
                 base_path=log_dir,
+                real_data_path=str(data_dir / "stock_data.csv"),
                 db_path=user_db,
                 json_file_path=f"{log_dir}/trading_records/{current_date.strftime('%Y-%m-%d')}.json",
             )
@@ -894,6 +895,7 @@ def parse_args():
     parser.add_argument(
         "--config_path", type=str, default="./config/api.yaml", help="API配置文件路径"
     )
+    parser.add_argument("--checkpoint", action="store_true", help="显式从已准备的 checkpoint 续跑")
     parser.add_argument("--random_seed", type=int, default=20260916, help="随机种子")
     parser.add_argument("--checkpoint_state_path", type=str, default=None,
                         help="运行契约 state.json 路径")
@@ -922,13 +924,8 @@ if __name__ == "__main__":
     print(json.dumps(vars(args), indent=4, ensure_ascii=False))
 
     # ============================ 检查点逻辑判断 ============================
-    # 根据开始日期判断是否从检查点开始
-    if args.start_date == "2023-06-15":
-        checkpoint = False  # 从头开始，需要初始化所有数据
-        print("模式: 从头开始模拟")
-    else:
-        checkpoint = True  # 从检查点继续，使用已有数据
-        print(f"模式: 从检查点 {args.start_date} 继续模拟")
+    checkpoint = args.checkpoint
+    print("模式: checkpoint 续跑" if checkpoint else "模式: 新建模拟")
 
     # ============================ 数据库初始化 ============================
     if not checkpoint:

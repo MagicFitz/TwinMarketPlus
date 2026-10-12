@@ -53,6 +53,7 @@ class ProcessManager:
             command.append("--resume")
         worker_environment = os.environ.copy()
         worker_environment.update(self.settings.as_environ())
+        worker_environment.pop("TUSHARE_TOKEN", None)
         process = subprocess.Popen(
             command,
             cwd=self.settings.project_root,

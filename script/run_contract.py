@@ -212,6 +212,8 @@ def launch(args: argparse.Namespace) -> int:
         raise ValueError("run_dir 必须直接位于 ./runs 下")
     if args.resume_date:
         validate_resume(run_dir, args.resume_date, args.user_count)
+        if "--checkpoint" not in args.command:
+            args.command.append("--checkpoint")
     state_path = run_dir / "state.json"
     with RunLock(run_dir):
         state = json.loads(state_path.read_text(encoding="utf-8"))

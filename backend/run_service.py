@@ -5,7 +5,7 @@ import hashlib
 import json
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -13,6 +13,8 @@ from uuid import uuid4
 from runtime.schemas import redact
 
 from .registry import ConflictError, RunRegistry
+from .market_data.registry import MarketRegistry
+from .market_data.snapshots import resolve_snapshot
 from .settings import Settings, get_settings
 
 
@@ -27,6 +29,9 @@ DEFAULTS = {
     "template_db": "data/sys_1000.db",
     "belief_source": "util/belief/belief_1000_0129.csv",
     "config_path": "config/api.yaml",
+    "market_snapshot_id": None,
+    "market_data_mode": "legacy",
+    "allow_missing_news": False,
 }
 
 
@@ -87,6 +92,18 @@ def normalize_config(value: dict[str, Any], settings: Settings | None = None) ->
         or not 0 <= config["prob_of_technical"] <= 1
     ):
         raise ValueError("用户数、并发数或概率超出允许范围")
+    config["start_date"] = date.fromisoformat(str(config["start_date"])).isoformat()
+    config["end_date"] = date.fromisoformat(str(config["end_date"])).isoformat()
+    if not isinstance(config["allow_missing_news"], bool):
+        raise ValueError("allow_missing_news 必须是布尔值")
+    if "market_snapshot_id" not in value and "market_data_mode" not in value:
+        config["market_snapshot_id"] = MarketRegistry(settings).setting("active_snapshot_id")
+    if config["market_snapshot_id"]:
+        config["market_data_mode"] = "snapshot"
+    elif config["market_data_mode"] == "snapshot":
+        raise ValueError("快照模式必须选择市场环境快照")
+    elif config["market_data_mode"] != "legacy":
+        raise ValueError("market_data_mode 必须为 legacy 或 snapshot")
     if config["start_date"] > config["end_date"]:
         raise ValueError("开始日期不能晚于结束日期")
     for key in ("template_db", "belief_source", "config_path"):
@@ -95,7 +112,46 @@ def normalize_config(value: dict[str, Any], settings: Settings | None = None) ->
             config[key] = str(path.relative_to(settings.project_root))
         except ValueError:
             config[key] = str(path)
+    if config["market_snapshot_id"]:
+        resolve_snapshot(settings, config["market_snapshot_id"], start_date=config["start_date"],
+                         end_date=config["end_date"], allow_missing_news=config["allow_missing_news"])
     return config
+
+
+def market_environment(config, settings):
+    if config.get("market_snapshot_id"):
+        return resolve_snapshot(settings, config["market_snapshot_id"], start_date=config["start_date"],
+                                end_date=config["end_date"], allow_missing_news=config.get("allow_missing_news", False))
+    return None, settings.data_dir
+
+
+def write_manifest(output, config, settings):
+    metadata, market_dir = market_environment(config, settings)
+    input_paths = {
+        "agent_group_template": settings.input_path(config["template_db"]),
+        "belief_source": settings.project_path(config["belief_source"]),
+        "model_config": settings.project_path(config["config_path"]),
+        "market_stock_data": market_dir / "stock_data.csv",
+        "market_trading_days": market_dir / "trading_days.csv",
+        "market_news": market_dir / "sorted_impact_news.pkl",
+    }
+    manifest = {
+        "schema_version": 3, "run_id": output.name,
+        "created_at": datetime.now(timezone.utc).isoformat(), "code_version": git_revision(settings),
+        "parameters": redact(config),
+        "inputs": {key: file_fingerprint(path, settings) for key, path in input_paths.items() if path.is_file()},
+        "market_environment": {key: metadata[key] for key in (
+            "snapshot_id", "effective_through", "transform_version", "asset_definition_sha256", "datasets", "files")
+        } if metadata else {"mode": "legacy"},
+        "research_warnings": metadata["quality"]["warnings"] if metadata else [],
+        "command_summary": "backend.worker -> simulation.py (arguments stored in Registry config)",
+        "checkpoint_rule": {"resume_date": "必须等于 state.json checkpoint.next_date",
+                            "cleanup": "续跑日及之后的数据库记录和按日期产物将被重新生成"},
+    }
+    temporary = output / ".manifest.tmp"
+    temporary.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(output / "manifest.json")
+    return manifest
 
 
 def create_run(
@@ -115,34 +171,7 @@ def create_run(
     except FileExistsError as error:
         raise ConflictError("run_id 已存在，拒绝覆盖运行目录") from error
     try:
-        input_paths = {
-            "agent_group_template": settings.input_path(config["template_db"]),
-            "belief_source": settings.project_path(config["belief_source"]),
-            "model_config": settings.project_path(config["config_path"]),
-            "market_stock_data": settings.data_path("stock_data.csv"),
-            "market_trading_days": settings.data_path("trading_days.csv"),
-            "market_news": settings.data_path("sorted_impact_news.pkl"),
-        }
-        manifest = {
-            "schema_version": 2,
-            "run_id": run_id,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "code_version": git_revision(settings),
-            "parameters": redact(config),
-            "inputs": {
-                key: file_fingerprint(path, settings)
-                for key, path in input_paths.items()
-                if path.is_file()
-            },
-            "command_summary": "backend.worker -> simulation.py (arguments stored in Registry config)",
-            "checkpoint_rule": {
-                "resume_date": "必须等于 state.json checkpoint.next_date",
-                "cleanup": "续跑日及之后的数据库记录和按日期产物将被重新生成",
-            },
-        }
-        (output / "manifest.json").write_text(
-            json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        write_manifest(output, config, settings)
         (output / "state.json").write_text(
             json.dumps(
                 {
@@ -184,10 +213,16 @@ def validate_start(
             valid = False
         if not valid:
             errors.append(f"缺少必要输入: {key}")
-    if not settings.data_path("sorted_impact_news.pkl").is_file() or not settings.data_path(
-        "trading_days.csv"
-    ).is_file():
-        errors.append("缺少市场数据或交易日历")
+    try:
+        metadata, market_dir = market_environment(config, settings)
+        if metadata:
+            manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+            if manifest.get("market_environment", {}).get("snapshot_id") != config["market_snapshot_id"]:
+                errors.append("运行清单与市场快照不一致")
+        if any(not (market_dir / name).is_file() for name in ("stock_data.csv", "trading_days.csv", "sorted_impact_news.pkl")):
+            errors.append("缺少市场数据或交易日历")
+    except (ValueError, OSError) as error:
+        errors.append(str(error))
     if resume:
         next_date = run["checkpoint"].get("next_date")
         if not next_date or next_date > config["end_date"]:

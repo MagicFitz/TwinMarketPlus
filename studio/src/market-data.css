@@ -1,0 +1,32 @@
+.market-data {min-width:0}
+.market-data h2,.market-data h3 {margin:0 0 12px}
+.market-data p {line-height:1.7}
+.market-data-heading {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+.market-data-heading p {margin:5px 0;color:var(--animal-text-color-secondary);font-size:13px}
+.market-data-actions {display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:14px 0}
+.market-field {display:grid;gap:10px;margin:20px 0;font-size:13px;font-weight:600}
+.market-field>div {min-width:0}
+.market-capabilities {display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+.market-capabilities>div {display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--animal-border-radius-base);background:var(--animal-bg-color);font-size:12px}
+.market-capabilities small {flex-basis:100%;color:var(--animal-text-color-secondary)}
+.market-facts {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin:20px 0}
+.market-facts dt {font-size:12px;color:var(--animal-text-color-secondary);margin-bottom:8px}
+.market-facts dd {margin:0;font-size:14px;font-weight:600;overflow-wrap:anywhere}
+.market-muted {color:var(--animal-text-color-secondary);font-size:12px}
+.market-notice {padding:14px 18px;border-radius:var(--animal-border-radius-base);background:var(--animal-bg-color);border:1px solid var(--animal-warning-color);font-size:13px}
+.market-data a {color:var(--animal-primary-color);text-decoration:underline}
+.market-jobs {display:grid;gap:16px}
+.market-jobs article {padding:16px;border:1px solid var(--animal-border-color-light);border-radius:var(--animal-border-radius-base)}
+.market-jobs small {overflow-wrap:anywhere;font-size:12px}
+.market-jobs progress {display:block;width:100%;height:12px;accent-color:var(--animal-primary-color)}
+.market-jobs .market-data-heading {margin:10px 0}
+.market-file-list article {padding:14px 0;border-bottom:1px solid var(--animal-border-color-light)}
+.market-file-list small {display:block;margin-top:8px;color:var(--animal-text-color-secondary)}
+.market-fingerprint {overflow-wrap:anywhere;font-size:11px;color:var(--animal-text-color-secondary)}
+.market-warning-list {font-size:13px;padding-left:20px;line-height:1.8}
+.market-assets {display:grid;gap:10px;margin-top:20px}
+.market-assets details {border:1px solid var(--animal-border-color-light);border-radius:var(--animal-border-radius-base);padding:14px}
+.market-assets summary {cursor:pointer;font-size:13px;font-weight:600}
+.market-sync-form {padding:4px 8px 24px}
+.run-market-snapshot {padding:4px 0 16px;border-bottom:1px solid var(--animal-border-color-light);margin-bottom:16px}
+@media(max-width:760px) {.market-data-heading {align-items:flex-start;flex-wrap:wrap}.market-facts {grid-template-columns:1fr}.market-data .panel {padding:20px 16px}.market-data-actions {gap:8px}.market-sync-form {padding:0 0 24px}}
