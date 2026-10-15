@@ -14,6 +14,7 @@ from runtime import RuntimeObserver
 from runtime.schemas import Scope
 
 from .registry import RunRegistry
+from .run_service import market_environment, validate_start
 from .runtime_service import runtime_snapshot, store_for
 from .settings import Settings, get_settings
 
@@ -44,6 +45,15 @@ def run_worker(run_id: str, *, resume: bool = False, settings: Settings | None =
     )
     observer.started(Scope.RUN, "run", message="运行 Worker 已启动")
     try:
+        preflight = validate_start(run, resume, settings)
+        if preflight:
+            raise ValueError("; ".join(preflight))
+        metadata, market_dir = market_environment(config, settings)
+        simulation_env = {**os.environ, **settings.as_environ(), "TWINMARKET_DATA_DIR": str(market_dir)}
+        simulation_env.pop("TUSHARE_TOKEN", None)
+        simulation_env.pop("TWINMARKET_MARKET_SNAPSHOT_ID", None)
+        if metadata:
+            simulation_env["TWINMARKET_MARKET_SNAPSHOT_ID"] = metadata["snapshot_id"]
         if not resume:
             observer.started(Scope.RUN, "prepare", message="正在准备独立运行目录")
             subprocess.run(
@@ -60,8 +70,10 @@ def run_worker(run_id: str, *, resume: bool = False, settings: Settings | None =
                     str(folder / f"user_{config['user_count']}.db"),
                     "--belief-output",
                     str(folder / f"belief_{config['user_count']}.csv"),
+                    *(["--market-snapshot", str(market_dir), "--start-date", config["start_date"]] if metadata else []),
                 ],
                 cwd=settings.project_root,
+                env=simulation_env,
                 check=True,
             )
             observer.completed(
@@ -108,10 +120,13 @@ def run_worker(run_id: str, *, resume: bool = False, settings: Settings | None =
             "--run-id",
             run_id,
         ]
+        if resume:
+            command.append("--checkpoint")
         with log.open("a", encoding="utf-8") as handle:
             result = subprocess.run(
                 command,
                 cwd=settings.project_root,
+                env=simulation_env,
                 stdout=handle,
                 stderr=subprocess.STDOUT,
             )

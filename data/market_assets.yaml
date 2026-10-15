@@ -1,0 +1,218 @@
+schema_version: 1
+effective_from: '2023-01-03'
+assets:
+  TLEI:
+    name: 交通与运输指数
+    base_currency: CNY
+    constituents:
+    - ts_code: 601919.SH
+      name: 中远海控
+      weight: 0.5234000000000001
+    - ts_code: 600150.SH
+      name: 中国船舶
+      weight: 0.47659999999999997
+  MEI:
+    name: 制造业指数
+    base_currency: CNY
+    constituents:
+    - ts_code: 601012.SH
+      name: 隆基绿能
+      weight: 0.16510000000000002
+    - ts_code: 600690.SH
+      name: 海尔智家
+      weight: 0.1578
+    - ts_code: 600031.SH
+      name: 三一重工
+      weight: 0.15289999999999998
+    - ts_code: 600406.SH
+      name: 国电南瑞
+      weight: 0.146
+    - ts_code: 600104.SH
+      name: 上汽集团
+      weight: 0.1198
+    - ts_code: 600438.SH
+      name: 通威股份
+      weight: 0.1092
+    - ts_code: 600089.SH
+      name: 特变电工
+      weight: 0.1012
+    - ts_code: 601633.SH
+      name: 长城汽车
+      weight: 0.048
+  CPEI:
+    name: 化工与制药指数
+    base_currency: CNY
+    constituents:
+    - ts_code: 600276.SH
+      name: 恒瑞医药
+      weight: 0.4593
+    - ts_code: 600309.SH
+      name: 万华化学
+      weight: 0.2839
+    - ts_code: 603259.SH
+      name: 药明康德
+      weight: 0.2568
+  IEEI:
+    name: 基础设施与工程指数
+    base_currency: CNY
+    constituents:
+    - ts_code: 601668.SH
+      name: 中国建筑
+      weight: 0.5225
+    - ts_code: 601390.SH
+      name: 中国中铁
+      weight: 0.2764
+    - ts_code: 601669.SH
+      name: 中国电建
+      weight: 0.2011
+  REEI:
+    name: 房地产指数
+    base_currency: CNY
+    constituents:
+    - ts_code: 600048.SH
+      name: 保利发展
+      weight: 1.0
+  TSEI:
+    name: 旅游与服务指数
+    base_currency: CNY
+    constituents:
+    - ts_code: 601888.SH
+      name: 中国中免
+      weight: 1.0
+  CGEI:
+    name: 消费品指数
+    base_currency: CNY
+    constituents:
+    - ts_code: 600519.SH
+      name: 贵州茅台
+      weight: 0.6918000000000001
+    - ts_code: 600887.SH
+      name: 伊利股份
+      weight: 0.1313
+    - ts_code: 600809.SH
+      name: 山西汾酒
+      weight: 0.0717
+    - ts_code: 603288.SH
+      name: 海天味业
+      weight: 0.054400000000000004
+    - ts_code: 600436.SH
+      name: 片仔癀
+      weight: 0.0508
+  TTEI:
+    name: 科技与通信指数
+    base_currency: CNY
+    constituents:
+    - ts_code: 688981.SH
+      name: 中芯国际
+      weight: 0.18068193180681932
+      legacy_weight: 0.1807
+    - ts_code: 688041.SH
+      name: 海光信息
+      weight: 0.11888811118888112
+      legacy_weight: 0.1189
+    - ts_code: 601728.SH
+      name: 中国电信
+      weight: 0.10208979102089792
+      legacy_weight: 0.10210000000000001
+    - ts_code: 600050.SH
+      name: 中国联通
+      weight: 0.09979002099790021
+      legacy_weight: 0.0998
+    - ts_code: 688012.SH
+      name: 中微公司
+      weight: 0.0978902109789021
+      legacy_weight: 0.09789999999999999
+    - ts_code: 600941.SH
+      name: 中国移动
+      weight: 0.09759024097590241
+      legacy_weight: 0.09759999999999999
+    - ts_code: 601985.SH
+      name: 中国核电
+      weight: 0.09049095090490952
+      legacy_weight: 0.09050000000000001
+    - ts_code: 603501.SH
+      name: 韦尔股份
+      weight: 0.08529147085291469
+      legacy_weight: 0.08529999999999999
+    - ts_code: 688111.SH
+      name: 金山办公
+      weight: 0.06919308069193081
+      legacy_weight: 0.0692
+    - ts_code: 603986.SH
+      name: 兆易创新
+      weight: 0.0580941905809419
+      legacy_weight: 0.0581
+    published_weight_sum: 1.0001
+    rounding_policy: Normalize legacy rounded percentages to sum to one
+  EREI:
+    name: 能源与资源指数
+    base_currency: CNY
+    constituents:
+    - ts_code: 600900.SH
+      name: 长江电力
+      weight: 0.3345
+    - ts_code: 601899.SH
+      name: 紫金矿业
+      weight: 0.2588
+    - ts_code: 601088.SH
+      name: 中国神华
+      weight: 0.1319
+    - ts_code: 600028.SH
+      name: 中国石化
+      weight: 0.0929
+    - ts_code: 601857.SH
+      name: 中国石油
+      weight: 0.09119999999999999
+    - ts_code: 601225.SH
+      name: 陕西煤业
+      weight: 0.0907
+  FSEI:
+    name: 金融服务指数
+    base_currency: CNY
+    constituents:
+    - ts_code: 601318.SH
+      name: 中国平安
+      weight: 0.2286228622862286
+      legacy_weight: 0.2286
+    - ts_code: 600036.SH
+      name: 招商银行
+      weight: 0.17941794179417941
+      legacy_weight: 0.1794
+    - ts_code: 600030.SH
+      name: 中信证券
+      weight: 0.11971197119711971
+      legacy_weight: 0.1197
+    - ts_code: 601166.SH
+      name: 兴业银行
+      weight: 0.10471047104710471
+      legacy_weight: 0.1047
+    - ts_code: 601398.SH
+      name: 工商银行
+      weight: 0.086008600860086
+      legacy_weight: 0.086
+    - ts_code: 601328.SH
+      name: 交通银行
+      weight: 0.08040804080408039
+      legacy_weight: 0.08039999999999999
+    - ts_code: 601288.SH
+      name: 农业银行
+      weight: 0.06120612061206121
+      legacy_weight: 0.061200000000000004
+    - ts_code: 601601.SH
+      name: 中国太保
+      weight: 0.0463046304630463
+      legacy_weight: 0.0463
+    - ts_code: 601988.SH
+      name: 中国银行
+      weight: 0.0421042104210421
+      legacy_weight: 0.0421
+    - ts_code: 601628.SH
+      name: 中国人寿
+      weight: 0.028002800280028
+      legacy_weight: 0.027999999999999997
+    - ts_code: 601658.SH
+      name: 邮储银行
+      weight: 0.023502350235023502
+      legacy_weight: 0.0235
+    published_weight_sum: 0.9999
+    rounding_policy: Normalize legacy rounded percentages to sum to one

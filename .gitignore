@@ -64,3 +64,12 @@ logs*/data/guba_data.csv
 backend/data/
 # 旧 Studio Registry 是本地数据；迁移时可通过 TWINMARKET_REGISTRY_PATH 继续使用。
 studio/backend/data/
+
+# Local financial-data credentials and licensed data; never publish these inputs.
+config/data_sources.yaml
+data/market_staging/
+data/market_snapshots/
+
+# Frontend source helpers must not be hidden by the Python lib/ rule.
+!frontend/src/lib/
+!frontend/src/lib/**
